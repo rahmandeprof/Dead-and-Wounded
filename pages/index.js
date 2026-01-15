@@ -146,9 +146,16 @@ export default function Home() {
     };
 
     const handleFindGame = () => {
+        console.log('🎯 Quick Match clicked');
+        console.log('Socket connected:', socket?.connected);
+        if (!socket || !socket.connected) {
+            console.error('❌ Socket not connected!');
+            alert('Connection error. Please refresh the page.');
+            return;
+        }
         socket.emit('game:find');
+        setIsSearching(true);
     };
-
     const handleCancelSearch = () => {
         if (game?.gameId) {
             socket.emit('game:leave', { gameId: game.gameId });
@@ -158,14 +165,35 @@ export default function Home() {
     };
 
     const handleCreatePrivate = () => {
+        console.log('🔒 Create Private clicked');
+        console.log('Socket connected:', socket?.connected);
+        if (!socket || !socket.connected) {
+            console.error('❌ Socket not connected!');
+            alert('Connection error. Please refresh the page.');
+            return;
+        }
         socket.emit('game:create_private');
     };
 
     const handleJoinPrivate = (gameCode) => {
+        console.log('🔑 Join Private clicked with code:', gameCode);
+        console.log('Socket connected:', socket?.connected);
+        if (!socket || !socket.connected) {
+            console.error('❌ Socket not connected!');
+            alert('Connection error. Please refresh the page.');
+            return;
+        }
         socket.emit('game:join_private', { gameCode });
     };
 
     const handleViewHistory = () => {
+        console.log('📜 View History clicked');
+        console.log('Socket connected:', socket?.connected);
+        if (!socket || !socket.connected) {
+            console.error('❌ Socket not connected!');
+            alert('Connection error. Please refresh the page.');
+            return;
+        }
         socket.emit('game:history', { limit: 20 });
     };
 
