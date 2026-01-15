@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Game Styles */
+:root {
+    --dead-color: #ff6b6b;
+    --wounded-color: #ffd93d;
+}
+
+body {
+    @apply bg-slate-900 text-slate-100;
+}
+
+.perspective {
+    perspective: 1000px;
+}
+
+.rotate-y-180 {
+    transform: rotateY(180deg);
+}

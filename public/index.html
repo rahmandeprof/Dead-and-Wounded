@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dead and Wounded - A classic two-player number guessing game. Challenge friends online!">
+  <title>Dead & Wounded</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Auth View -->
+    <div id="auth-view" class="view active">
+      <div class="auth-container">
+        <div class="logo">
+          <div class="logo-icon">
+            <span class="dead">💀</span>
+            <span class="wounded">🩹</span>
+          </div>
+          <h1>Dead & Wounded</h1>
+          <p class="tagline">The Classic Number Guessing Game</p>
+        </div>
+
+        <div class="auth-tabs">
+          <button class="tab-btn active" data-tab="login">Login</button>
+          <button class="tab-btn" data-tab="register">Register</button>
+        </div>
+
+        <form id="login-form" class="auth-form active">
+          <div class="form-group">
+            <label for="login-username">Username</label>
+            <input type="text" id="login-username" required minlength="3" maxlength="20" autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" required minlength="4" autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary">Enter</button>
+          <p id="login-error" class="error-msg"></p>
+        </form>
+
+        <form id="register-form" class="auth-form">
+          <div class="form-group">
+            <label for="register-username">Username</label>
+            <input type="text" id="register-username" required minlength="3" maxlength="20" autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="register-password">Password</label>
+            <input type="password" id="register-password" required minlength="4" autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn btn-primary">Create Account</button>
+          <p id="register-error" class="error-msg"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Lobby View -->
+    <div id="lobby-view" class="view">
+      <header class="top-bar">
+        <div class="brand">💀 Dead & Wounded</div>
+        <div class="user-info">
+          <span id="user-stats"></span>
+          <span id="username-display"></span>
+          <button id="logout-btn" class="btn btn-ghost">Logout</button>
+        </div>
+      </header>
+
+      <main class="lobby-content">
+        <div class="lobby-card">
+          <h2>Ready to Play?</h2>
+          <p>Challenge another player to a battle of wits!</p>
+          
+          <div id="lobby-status" class="lobby-status">
+            <p>Click below to find an opponent</p>
+          </div>
+
+          <button id="find-game-btn" class="btn btn-large btn-primary">
+            <span class="btn-icon">🎯</span>
+            Find Match
+          </button>
+
+          <button id="cancel-search-btn" class="btn btn-large btn-danger hidden">
+            Cancel Search
+          </button>
+        </div>
+
+        <div class="rules-card">
+          <h3>How to Play</h3>
+          <ul>
+            <li>🔢 Choose a 4-digit secret number (no repeated digits)</li>
+            <li>🎯 Take turns guessing your opponent's number</li>
+            <li>💀 <strong>Dead</strong> = Right digit, right position</li>
+            <li>🩹 <strong>Wounded</strong> = Right digit, wrong position</li>
+            <li>🏆 First to guess all 4 digits wins!</li>
+          </ul>
+        </div>
+      </main>
+    </div>
+
+    <!-- Game View -->
+    <div id="game-view" class="view">
+      <header class="game-header">
+        <div class="game-info">
+          <span class="game-title">💀 Dead & Wounded</span>
+          <span id="opponent-name" class="opponent-name"></span>
+        </div>
+        <button id="leave-game-btn" class="btn btn-ghost btn-danger">Leave Game</button>
+      </header>
+
+      <!-- Setup Phase -->
+      <div id="setup-phase" class="game-phase">
+        <div class="setup-card">
+          <h2>Choose Your Secret Number</h2>
+          <p>Enter 4 unique digits (0-9). Your opponent won't see this!</p>
+          
+          <div class="secret-input-container">
+            <input type="password" id="secret-input-1" class="secret-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="password" id="secret-input-2" class="secret-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="password" id="secret-input-3" class="secret-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            <input type="password" id="secret-input-4" class="secret-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+          </div>
+
+          <div class="secret-preview">
+            <label>
+              <input type="checkbox" id="show-secret-toggle"> Show digits
+            </label>
+          </div>
+
+          <p id="secret-error" class="error-msg"></p>
+          <button id="submit-secret-btn" class="btn btn-primary">Lock In Secret</button>
+          
+          <div id="waiting-for-opponent" class="waiting-msg hidden">
+            <div class="spinner"></div>
+            <p>Waiting for opponent to set their secret...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playing Phase -->
+      <div id="playing-phase" class="game-phase hidden">
+        <div class="game-board">
+          <div class="turn-indicator" id="turn-indicator">
+            <span class="turn-text">Your Turn</span>
+          </div>
+
+          <div class="guess-section">
+            <div class="guess-input-container">
+              <input type="text" id="guess-input-1" class="guess-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+              <input type="text" id="guess-input-2" class="guess-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+              <input type="text" id="guess-input-3" class="guess-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+              <input type="text" id="guess-input-4" class="guess-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            </div>
+            <button id="submit-guess-btn" class="btn btn-primary">Guess</button>
+          </div>
+
+          <p id="guess-error" class="error-msg"></p>
+
+          <div class="history-section">
+            <h3>Your Guesses</h3>
+            <div id="guess-history" class="guess-history">
+              <p class="no-guesses">No guesses yet. Make your first move!</p>
+            </div>
+          </div>
+
+          <div class="your-secret-display">
+            <span>Your Secret:</span>
+            <span id="your-secret-number" class="secret-number">****</span>
+            <button id="reveal-secret-btn" class="btn btn-ghost btn-small">Show</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Game Over Phase -->
+      <div id="gameover-phase" class="game-phase hidden">
+        <div class="gameover-card">
+          <div id="gameover-result" class="gameover-result">
+            <span class="result-icon">🏆</span>
+            <h2 class="result-text">You Win!</h2>
+          </div>
+          
+          <div class="secrets-reveal">
+            <div class="secret-reveal">
+              <span class="label">Your Secret</span>
+              <span id="final-your-secret" class="secret-digits"></span>
+            </div>
+            <div class="secret-reveal">
+              <span class="label">Opponent's Secret</span>
+              <span id="final-opponent-secret" class="secret-digits"></span>
+            </div>
+          </div>
+
+          <div class="final-stats">
+            <span id="total-guesses">Total Guesses: 0</span>
+          </div>
+
+          <button id="play-again-btn" class="btn btn-large btn-primary">Play Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
