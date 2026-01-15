@@ -1,3 +1,4 @@
+// Game History View Component
 export default function HistoryView({ history, user, onBack }) {
     if (!history || history.length === 0) {
         return (
@@ -77,8 +78,8 @@ export default function HistoryView({ history, user, onBack }) {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${didWin
-                                                    ? 'bg-green-900/30 text-green-400 border border-green-500/30'
-                                                    : 'bg-red-900/30 text-red-400 border border-red-500/30'
+                                                ? 'bg-green-900/30 text-green-400 border border-green-500/30'
+                                                : 'bg-red-900/30 text-red-400 border border-red-500/30'
                                                 }`}>
                                                 {didWin ? '🏆 Win' : '💀 Loss'}
                                             </span>
