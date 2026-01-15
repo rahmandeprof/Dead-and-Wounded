@@ -221,6 +221,10 @@ app.prepare().then(async () => {
 
         socket.on('game:play_ai', async ({ difficulty = 'medium' }) => {
             try {
+                // Validate difficulty
+                const validDifficulties = ['easy', 'medium', 'hard'];
+                const aiDifficulty = validDifficulties.includes(difficulty) ? difficulty : 'medium';
+
                 const activeGame = await db.gameOps.findActiveForUser(userId);
                 if (activeGame) {
                     socket.emit('game:error', { message: 'You already have an active game' });
