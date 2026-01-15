@@ -28,9 +28,14 @@ const sessionMiddleware = session({
 });
 
 // Initialize DB
-db.initDatabase().catch(console.error);
-
-app.prepare().then(() => {
+app.prepare().then(async () => {
+    try {
+        await db.initDatabase();
+        console.log('✅ Database initialized successfully');
+    } catch (error) {
+        console.error('⚠️ Database initialization failed:', error.message);
+        console.error('Server will continue but features requiring database will not work');
+    }
     const server = createServer(async (req, res) => {
         try {
             // Parse request URL
