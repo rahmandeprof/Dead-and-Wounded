@@ -387,6 +387,56 @@ app.prepare().then(async () => {
                         lastGuess: guessData,
                         guesses: p2Guesses
                     });
+
+                    // Handle AI turn if this is an AI game
+                    if (game.is_ai && !game.is_practice) {
+                        socket.emit('game:ai_thinking', { thinking: true });
+
+                        setTimeout(async () => {
+                            try {
+                                const ai = new AIOpponent(game.ai_difficulty);
+                                const aiGuesses = await db.guessOps.getByPlayer(gameId, null);
+                                const aiGuess = ai.makeGuess(aiGuesses.map(g => ({ guess: g.guess, dead: g.dead, wounded: g.wounded })));
+
+                                const playerSecret = game.player1_secret;
+                                const aiResult = gameLogic.calculateDeadWounded(playerSecret, aiGuess);
+
+                                await db.guessOps.add(gameId, null, aiGuess, aiResult.dead, aiResult.wounded);
+
+                                if (gameLogic.isWinningGuess(aiResult.dead)) {
+                                    await db.gameOps.end(null, gameId);
+                                    await db.userOps.updateStats(0, 1, userId);
+
+                                    const finishedGame = await db.gameOps.findById(gameId);
+                                    const allGuesses = await db.guessOps.getAll(gameId);
+
+                                    socket.emit('game:over', {
+                                        ...formatGameState(finishedGame, userId),
+                                        winnerId: null,
+                                        winnerUsername: `AI (${game.ai_difficulty})`,
+                                        guesses: allGuesses,
+                                        player1Secret: game.player1_secret,
+                                        player2Secret: game.player2_secret
+                                    });
+                                } else {
+                                    await db.gameOps.switchTurn(userId, gameId);
+                                    const gameAfterAI = await db.gameOps.findById(gameId);
+                                    const playerGuesses = await db.guessOps.getByPlayer(gameId, userId);
+                                    const aiAllGuesses = await db.guessOps.getByPlayer(gameId, null);
+
+                                    socket.emit('game:ai_thinking', { thinking: false });
+                                    socket.emit('game:guess_result', {
+                                        ...formatGameState(gameAfterAI, userId),
+                                        lastGuess: { playerId: null, playerUsername: `AI (${game.ai_difficulty})`, guess: aiGuess, ...aiResult },
+                                        guesses: playerGuesses
+                                    });
+                                }
+                            } catch (error) {
+                                console.error('AI turn error:', error);
+                                socket.emit('game:ai_thinking', { thinking: false });
+                            }
+                        }, 1500);
+                    }
                 }
             } catch (error) {
                 console.error('Guess error:', error);

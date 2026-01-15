@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function LobbyView({ onFindGame, onCreatePrivate, onJoinPrivate, onViewHistory, isSearching, privateGameCode, onCancelSearch }) {
+export default function LobbyView({ onFindGame, onCreatePrivate, onJoinPrivate, onViewHistory, onPlayAI, onPractice, isSearching, privateGameCode, onCancelSearch }) {
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [joinCode, setJoinCode] = useState('');
     const [joinError, setJoinError] = useState('');
@@ -93,6 +93,21 @@ export default function LobbyView({ onFindGame, onCreatePrivate, onJoinPrivate, 
                                     className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
                                 >
                                     🔑 Join Private
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
+                                    onClick={onPlayAI}
+                                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold rounded-lg transition-all border border-purple-500"
+                                >
+                                    🤖 Play vs AI
+                                </button>
+                                <button
+                                    onClick={onPractice}
+                                    className="px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white font-semibold rounded-lg transition-all border border-green-500"
+                                >
+                                    📝 Practice
                                 </button>
                             </div>
 

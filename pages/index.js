@@ -5,6 +5,7 @@ import AuthView from '../components/AuthView';
 import LobbyView from '../components/LobbyView';
 import GameView from '../components/GameView';
 import HistoryView from '../components/HistoryView';
+import DifficultyModal from '../components/DifficultyModal';
 
 let socket;
 let socketInitializing = false;
@@ -16,6 +17,8 @@ export default function Home() {
     const [isSearching, setIsSearching] = useState(false);
     const [privateGameCode, setPrivateGameCode] = useState(null);
     const [gameHistory, setGameHistory] = useState([]);
+    const [showDifficultyModal, setShowDifficultyModal] = useState(false);
+    const [aiThinking, setAiThinking] = useState(false);
 
     // Initial Auth Check
     useEffect(() => {
@@ -155,6 +158,20 @@ export default function Home() {
             setIsSearching(false);
             setPrivateGameCode(null);
         });
+
+        socket.on('game:ai_created', (data) => {
+            setGame(data);
+            setView('game');
+        });
+
+        socket.on('game:practice_created', (data) => {
+            setGame(data);
+            setView('game');
+        });
+
+        socket.on('game:ai_thinking', (data) => {
+            setAiThinking(data.thinking);
+        });
     };
 
     const handleLogin = (userData) => {
@@ -226,6 +243,33 @@ export default function Home() {
         setView('lobby');
     };
 
+    const handlePlayAI = () => {
+        setShowDifficultyModal(true);
+    };
+
+    const handleDifficultySelect = (difficulty) => {
+        console.log('🤖 Play vs AI clicked - Difficulty:', difficulty);
+        console.log('Socket connected:', socket?.connected);
+        if (!socket || !socket.connected) {
+            console.error('❌ Socket not connected!');
+            alert('Connection error. Please refresh the page.');
+            return;
+        }
+        setShowDifficultyModal(false);
+        socket.emit('game:play_ai', { difficulty });
+    };
+
+    const handlePractice = () => {
+        console.log('📝 Practice Mode clicked');
+        console.log('Socket connected:', socket?.connected);
+        if (!socket || !socket.connected) {
+            console.error('❌ Socket not connected!');
+            alert('Connection error. Please refresh the page.');
+            return;
+        }
+        socket.emit('game:practice');
+    };
+
     const handleLeaveGame = () => {
         if (confirm('Are you sure you want to leave?')) {
             socket.emit('game:leave', { gameId: game.gameId });
@@ -262,16 +306,26 @@ export default function Home() {
             {view === 'auth' && <AuthView onLogin={handleLogin} />}
 
             {view === 'lobby' && (
-                <LobbyView
-                    user={user}
-                    onFindGame={handleFindGame}
-                    onCreatePrivate={handleCreatePrivate}
-                    onJoinPrivate={handleJoinPrivate}
-                    onViewHistory={handleViewHistory}
-                    isSearching={isSearching}
-                    privateGameCode={privateGameCode}
-                    onCancelSearch={handleCancelSearch}
-                />
+                <>
+                    <LobbyView
+                        user={user}
+                        onFindGame={handleFindGame}
+                        onCreatePrivate={handleCreatePrivate}
+                        onJoinPrivate={handleJoinPrivate}
+                        onViewHistory={handleViewHistory}
+                        onPlayAI={handlePlayAI}
+                        onPractice={handlePractice}
+                        isSearching={isSearching}
+                        privateGameCode={privateGameCode}
+                        onCancelSearch={handleCancelSearch}
+                    />
+                    {showDifficultyModal && (
+                        <DifficultyModal
+                            onSelect={handleDifficultySelect}
+                            onClose={() => setShowDifficultyModal(false)}
+                        />
+                    )}
+                </>
             )}
 
             {view === 'history' && (
