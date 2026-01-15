@@ -19,16 +19,27 @@ export default function Home() {
 
     // Initial Auth Check
     useEffect(() => {
-        fetch('/api/me')
+        fetch('/api/me', { credentials: 'include' })
             .then(res => {
-                if (!res.ok) throw new Error('Not authenticated');
+                if (!res.ok) {
+                    // Only redirect to auth if it's a 401 (not authenticated)
+                    if (res.status === 401) {
+                        throw new Error('Not authenticated');
+                    }
+                    // For other errors, retry
+                    return null;
+                }
                 return res.json();
             })
             .then(data => {
-                if (data.user) {
+                if (data && data.user) {
                     setUser(data.user);
                     initSocket();
                     setView('lobby');
+                } else if (data === null) {
+                    // Network error, stay on loading
+                    console.log('Network error, retrying...');
+                    setTimeout(() => window.location.reload(), 2000);
                 } else {
                     setView('auth');
                 }
@@ -42,13 +53,27 @@ export default function Home() {
 
     const initSocket = () => {
         if ((socket && socket.connected) || socketInitializing) return;
-        socketInitializing = true;
+        socketInitializing = false;
 
-        socket = io();
+        socket = io({
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            timeout: 10000
+        });
 
         socket.on('connect', () => {
             socketInitializing = false;
-            console.log('Connected to socket');
+            console.log('✅ Connected to socket');
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('❌ Socket connection error:', error.message);
+            socketInitializing = false;
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('Socket disconnected:', reason);
         });
 
         socket.on('game:waiting', (data) => {

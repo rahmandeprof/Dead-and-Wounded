@@ -2,14 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    html {
+        @apply antialiased;
+    }
+
+    body {
+        @apply bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white min-h-screen;
+        /* Prevent zoom on mobile */
+        touch-action: manipulation;
+    }
+}
+
+@layer utilities {
+
+    /* Mobile-friendly tap targets */
+    .tap-target {
+        @apply min-h-[44px] min-w-[44px];
+    }
+}
+
+.text-dead {
+    color: #ef4444;
+}
+
+.text-wounded {
+    color: #f59e0b;
+}
+
 /* Custom Game Styles */
 :root {
     --dead-color: #ff6b6b;
     --wounded-color: #ffd93d;
-}
-
-body {
-    @apply bg-slate-900 text-slate-100;
 }
 
 .perspective {

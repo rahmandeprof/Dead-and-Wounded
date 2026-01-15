@@ -58,8 +58,14 @@ app.prepare().then(async () => {
         }
     });
 
-    // Socket.IO Setup
-    const io = new Server(server);
+    // Socket.IO Setup with CORS
+    const io = new Server(server, {
+        cors: {
+            origin: "*", // Allow all origins in production (Railway handles this)
+            methods: ["GET", "POST"],
+            credentials: true
+        }
+    });
 
     // Share session with Socket.IO
     io.engine.use(sessionMiddleware);

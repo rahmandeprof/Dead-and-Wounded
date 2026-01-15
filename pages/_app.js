@@ -1,12 +1,13 @@
 import '../styles/globals.css';
 import Head from 'next/head';
 
-function MyApp({ Component, pageProps }) {
+export default function App({ Component, pageProps }) {
     return (
         <>
             <Head>
-                <title>Dead & Wounded</title>
-                <meta name="description" content="Classic multiplayer number guessing game" />
+                <title>Dead and Wounded</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+                <meta name="description" content="Multiplayer number guessing game" />
             </Head>
             <Component {...pageProps} />
         </>
