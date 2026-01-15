@@ -224,6 +224,7 @@ export default function Home() {
             {view === 'history' && (
                 <HistoryView
                     history={gameHistory}
+                    user={user}
                     onBack={handleBackToLobby}
                 />
             )}
