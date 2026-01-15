@@ -232,10 +232,10 @@ app.prepare().then(async () => {
                 }
 
                 const gameId = uuidv4();
-                await db.gameOps.createAI(gameId, userId, difficulty);
+                await db.gameOps.createAI(gameId, userId, aiDifficulty);
 
                 // Create AI opponent
-                const ai = new AIOpponent(difficulty);
+                const ai = new AIOpponent(aiDifficulty);
                 const aiSecret = ai.generateSecret();
 
                 // Store AI secret
@@ -244,8 +244,8 @@ app.prepare().then(async () => {
                 const game = await db.gameOps.findById(gameId);
                 socket.emit('game:ai_created', {
                     ...formatGameState(game, userId),
-                    aiDifficulty: difficulty,
-                    opponentName: `AI (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})`
+                    aiDifficulty: aiDifficulty,
+                    opponentName: `AI (${aiDifficulty.charAt(0).toUpperCase() + aiDifficulty.slice(1)})`
                 });
             } catch (error) {
                 console.error('Create AI game error:', error);
@@ -269,7 +269,7 @@ app.prepare().then(async () => {
                 const practiceSecret = ai.generateSecret();
 
                 await db.gameOps.setSecrets(gameId, null, practiceSecret);
-                await db.gameOps.start(gameId, userId);
+                await db.gameOps.start(userId, gameId);
 
                 const game = await db.gameOps.findById(gameId);
                 socket.emit('game:practice_created', {
