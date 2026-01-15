@@ -21,11 +21,11 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'dead-and-wounded-secret-ke
 const sessionMiddleware = session({
     secret: SESSION_SECRET,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Changed to true to save session on first request
     cookie: {
         secure: false, // Set to false for Railway (Railway handles HTTPS termination)
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days instead of 24 hours
         sameSite: 'lax'
     }
 });
