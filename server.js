@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const session = require('express-session');
 const db = require('./lib/database');
 const gameLogic = require('./lib/game-logic');
+const AIOpponent = require('./lib/ai-opponent');
 const { v4: uuidv4 } = require('uuid');
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -215,6 +216,65 @@ app.prepare().then(async () => {
             } catch (error) {
                 console.error('Get history error:', error);
                 socket.emit('game:error', { message: 'Failed to fetch history' });
+            }
+        });
+
+        socket.on('game:play_ai', async ({ difficulty = 'medium' }) => {
+            try {
+                const activeGame = await db.gameOps.findActiveForUser(userId);
+                if (activeGame) {
+                    socket.emit('game:error', { message: 'You already have an active game' });
+                    return;
+                }
+
+                const gameId = uuidv4();
+                await db.gameOps.createAI(gameId, userId, difficulty);
+
+                // Create AI opponent
+                const ai = new AIOpponent(difficulty);
+                const aiSecret = ai.generateSecret();
+
+                // Store AI secret
+                await db.gameOps.setSecrets(gameId, null, aiSecret);
+
+                const game = await db.gameOps.findById(gameId);
+                socket.emit('game:ai_created', {
+                    ...formatGameState(game, userId),
+                    aiDifficulty: difficulty,
+                    opponentName: `AI (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})`
+                });
+            } catch (error) {
+                console.error('Create AI game error:', error);
+                socket.emit('game:error', { message: 'Failed to create AI game' });
+            }
+        });
+
+        socket.on('game:practice', async () => {
+            try {
+                const activeGame = await db.gameOps.findActiveForUser(userId);
+                if (activeGame) {
+                    socket.emit('game:error', { message: 'You already have an active game' });
+                    return;
+                }
+
+                const gameId = uuidv4();
+                await db.gameOps.createPractice(gameId, userId);
+
+                // Generate random secret for practice
+                const ai = new AIOpponent();
+                const practiceSecret = ai.generateSecret();
+
+                await db.gameOps.setSecrets(gameId, null, practiceSecret);
+                await db.gameOps.start(gameId, userId);
+
+                const game = await db.gameOps.findById(gameId);
+                socket.emit('game:practice_created', {
+                    ...formatGameState(game, userId),
+                    isPractice: true
+                });
+            } catch (error) {
+                console.error('Create practice game error:', error);
+                socket.emit('game:error', { message: 'Failed to create practice game' });
             }
         });
 
