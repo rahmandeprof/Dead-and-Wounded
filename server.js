@@ -22,8 +22,10 @@ const sessionMiddleware = session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        secure: false, // Set to false for Railway (Railway handles HTTPS termination)
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'lax'
     }
 });
 
@@ -64,21 +66,28 @@ app.prepare().then(async () => {
             origin: "*", // Allow all origins in production (Railway handles this)
             methods: ["GET", "POST"],
             credentials: true
-        }
+        },
+        allowEIO3: true
     });
 
-    // Share session with Socket.IO
-    io.engine.use(sessionMiddleware);
+    // Wrap session middleware for Socket.IO
+    const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
+    io.use(wrap(sessionMiddleware));
 
     // Track connected sockets by user ID
     const userSockets = new Map();
 
+    // Socket.IO connection handler
     io.on('connection', (socket) => {
         const session = socket.request.session;
 
+        console.log('Socket connection attempt');
+        console.log('Session exists:', !!session);
+        console.log('Session userId:', session?.userId);
+
         // Check auth from session - disconnect if not authenticated
         if (!session || !session.userId) {
-            console.log('Unauthenticated socket - disconnecting');
+            console.log('⚠️ Unauthenticated socket - disconnecting');
             socket.disconnect(true);
             return;
         }
