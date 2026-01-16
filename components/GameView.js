@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import GameTimer from './GameTimer';
 
 export default function GameView({ game, socket, onLeave, onPlayAgain }) {
     const [inputs, setInputs] = useState(['', '', '', '']);
@@ -130,9 +131,23 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
     );
 
     const PlayingPhase = () => (
-        <div className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* LEFT: Game Board */}
-            <div className="lg:col-span-7 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+            {/* LEFT: Guess Input */}
+            <div className="lg:col-span-7 space-y-4">
+                {/* Game Timer */}
+                {game.timeControl && (
+                    <GameTimer
+                        player1Time={game.player1Time}
+                        player2Time={game.player2Time}
+                        isPlayer1Turn={game.isPlayer1 ? game.isYourTurn : !game.isYourTurn}
+                        isMyTurn={game.isYourTurn}
+                        gameStatus={game.status}
+                        player1Name={game.isPlayer1 ? 'You' : game.opponent?.username}
+                        player2Name={game.isPlayer1 ? game.opponent?.username : 'You'}
+                    />
+                )}
+
+                {/* Turn indicator */}
                 <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
                     <div className={`p-4 rounded-lg text-center mb-6 transition-colors ${game.isYourTurn
                         ? 'bg-gradient-to-r from-orange-900/40 to-amber-900/40 border border-orange-500/30'

@@ -107,7 +107,11 @@ app.prepare().then(async () => {
             guesses: [],
             isAI: game.is_ai || false,
             isPractice: game.is_practice || false,
-            aiDifficulty: game.ai_difficulty
+            aiDifficulty: game.ai_difficulty,
+            timeControl: game.time_control_seconds,
+            player1Time: game.player1_time_remaining,
+            player2Time: game.player2_time_remaining,
+            isPlayer1: isPlayer1
         };
     }
 
