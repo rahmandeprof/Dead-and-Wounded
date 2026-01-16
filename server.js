@@ -462,17 +462,21 @@ app.prepare().then(async () => {
                                         player1Secret: game.player1_secret,
                                         player2Secret: game.player2_secret
                                     });
-                                } else {
                                     await db.gameOps.switchTurn(userId, gameId);
                                     const gameAfterAI = await db.gameOps.findById(gameId);
-                                    const playerGuesses = await db.guessOps.getByPlayer(gameId, userId);
-                                    const aiAllGuesses = await db.guessOps.getByPlayer(gameId, null);
+                                    const allGuesses = await db.guessOps.getAll(gameId);
+
+                                    // Mark guesses as mine or opponent's
+                                    const guessesWithFlags = allGuesses.map(g => ({
+                                        ...g,
+                                        isMine: g.player_id === userId
+                                    }));
 
                                     socket.emit('game:ai_thinking', { thinking: false });
                                     socket.emit('game:guess_result', {
                                         ...formatGameState(gameAfterAI, userId),
                                         lastGuess: { playerId: null, playerUsername: `AI (${game.ai_difficulty})`, guess: aiGuess, ...aiResult },
-                                        guesses: playerGuesses
+                                        guesses: guessesWithFlags
                                     });
                                 }
                             } catch (error) {
