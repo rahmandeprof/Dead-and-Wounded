@@ -211,6 +211,57 @@ export default function Home() {
             setView('game');
         });
 
+        socket.on('game:ai_thinking', (data) => {
+            setAiThinking(data.thinking);
+        });
+
+        socket.on('game:ai_guess', (data) => {
+            // AI made a guess - will be handled by game:update
+        });
+
+        socket.on('tournament:created', (data) => {
+            // Refresh tournament list
+        });
+
+        socket.on('tournament:joined', (data) => {
+            // Assuming `setActiveTournament` is defined elsewhere or needs to be added
+            // setActiveTournament(data.tournament);
+        });
+
+        socket.on('tournament:left', (data) => {
+            // setActiveTournament(null);
+        });
+
+        socket.on('tournament:started', (data) => {
+            // setActiveTournament(data.tournament);
+            // Game will be created automatically
+        });
+
+        socket.on('tournament:list', (data) => {
+            // Handle tournament list
+        });
+
+        socket.on('tournament:list_updated', () => {
+            // Refresh tournament list if viewing tournaments
+        });
+
+        socket.on('tournament:updated', (data) => {
+            // if (activeTournament && activeTournament.id === data.tournament.id) {
+            //     setActiveTournament(data.tournament);
+            // }
+        });
+
+        socket.on('tournament:complete', (data) => {
+            // Tournament finished
+            // setActiveTournament(null);
+        });
+
+        socket.on('tournament:round_started', (data) => {
+            // if (activeTournament && activeTournament.id === data.tournament.id) {
+            //     setActiveTournament(data.tournament);
+            // }
+        });
+
         return () => {
             socket.off('game:found');
             socket.off('game:private_created');
@@ -222,11 +273,18 @@ export default function Home() {
             socket.off('game:over');
             socket.off('game:ai_created');
             socket.off('game:practice_created');
+            socket.off('game:ai_thinking');
+            socket.off('game:ai_guess');
+            socket.off('tournament:created');
+            socket.off('tournament:joined');
+            socket.off('tournament:left');
+            socket.off('tournament:started');
+            socket.off('tournament:list');
+            socket.off('tournament:list_updated');
+            socket.off('tournament:updated');
+            socket.off('tournament:complete');
+            socket.off('tournament:round_started');
         };
-
-        socket.on('game:ai_thinking', (data) => {
-            setAiThinking(data.thinking);
-        });
     };
 
     const handleLogin = (userData) => {

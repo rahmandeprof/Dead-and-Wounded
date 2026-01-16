@@ -76,50 +76,55 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <button
-                                onClick={onFindGame}
-                                className="w-full group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-200 bg-orange-600 font-pj rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600 shadow-lg hover:bg-orange-500 hover:scale-105 active:scale-95"
-                            >
-                                <span className="mr-3 text-2xl">🎯</span>
-                                Quick Match
-                            </button>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <button
-                                    onClick={() => setShowTimeControlModal(true)}
-                                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
-                                >
-                                    🔒 Create Private
-                                </button>
-                                <button
-                                    onClick={() => setShowJoinModal(true)}
-                                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
-                                >
-                                    🔑 Join Private
-                                </button>
+                            <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-xl">
+                                <h2 className="text-3xl font-bold text-white mb-6">Quick Play</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <button
+                                        onClick={onFindGame}
+                                        className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
+                                    >
+                                        🎮 Find Match
+                                    </button>
+                                    <button
+                                        onClick={() => setShowTimeControlModal(true)}
+                                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
+                                    >
+                                        🔐 Create Private
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <button
-                                    onClick={onPlayAI}
-                                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
-                                >
-                                    🤖 vs AI
-                                </button>
-                                <button
-                                    onClick={onPractice}
-                                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
-                                >
-                                    🎯 Practice
-                                </button>
+                            {/* AI & Practice */}
+                            <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-xl">
+                                <h2 className="text-3xl font-bold text-white mb-6">Practice</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <button
+                                        onClick={() => onPlayAI('medium')}
+                                        className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
+                                    >
+                                        🤖 VS AI
+                                    </button>
+                                    <button
+                                        onClick={onPractice}
+                                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
+                                    >
+                                        📝 Practice Mode
+                                    </button>
+                                </div>
                             </div>
 
-                            <button
-                                onClick={onViewTournaments}
-                                className="w-full px-6 py-3 bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-500 hover:to-yellow-500 text-white font-bold rounded-lg transition-all shadow-lg"
-                            >
-                                🏆 Tournaments
-                            </button>
+                            {/* Tournaments */}
+                            <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-xl">
+                                <h2 className="text-3xl font-bold text-white mb-6">Compete</h2>
+                                <div className="grid grid-cols-1 gap-4">
+                                    <button
+                                        onClick={onViewTournaments}
+                                        className="bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
+                                    >
+                                        🏆 Tournaments
+                                    </button>
+                                </div>
+                            </div>
 
                             <button
                                 onClick={onViewHistory}
