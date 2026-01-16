@@ -932,9 +932,32 @@ app.prepare().then(async () => {
                     const guesses = await db.guessOps.getAll(gameId); // Changed from findByGame to getAll to match existing pattern
                     const dignifiables = await checkDignifiables(db, game, userId, guesses);
 
+                    // Emit dignifiables to winner
                     if (dignifiables.length > 0) {
                         socket.emit('dignifiables:unlocked', { dignifiables });
                     }
+
+                    // Update player stats for both players
+                    const isTournament = !!tournamentMatch;
+                    const gameDuration = Math.floor((Date.now() - new Date(game.created_at)) / 1000);
+
+                    // Update winner stats
+                    await db.analyticsOps.updatePlayerStats(userId, {
+                        isAI: game.is_ai,
+                        isTournament,
+                        isWinner: true,
+                        guessCount: guesses.filter(g => g.player_id === userId).length,
+                        duration: gameDuration
+                    });
+
+                    // Update loser stats
+                    await db.analyticsOps.updatePlayerStats(loserId, {
+                        isAI: game.is_ai,
+                        isTournament,
+                        isWinner: false,
+                        guessCount: guesses.filter(g => g.player_id === loserId).length,
+                        duration: gameDuration
+                    });
 
                     const finishedGame = await db.gameOps.findById(gameId);
                     // const guesses = await db.guessOps.getAll(gameId); // This line was moved up for dignifiables
