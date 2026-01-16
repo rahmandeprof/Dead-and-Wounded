@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import TimeControlSelector from './TimeControlSelector';
 
-export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistory, onPlayAI, onPractice, onFindGame, isSearching, privateGameCode, onCancelSearch }) {
+export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistory, onPlayAI, onPractice, onFindGame, onViewTournaments, isSearching, privateGameCode, onCancelSearch }) {
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [showTimeControlModal, setShowTimeControlModal] = useState(false);
     const [selectedTimeControl, setSelectedTimeControl] = useState(null);
@@ -86,6 +86,28 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
 
                             <div className="grid grid-cols-2 gap-4">
                                 <button
+                                    onClick={onPlayAI}
+                                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
+                                >
+                                    🤖 vs AI
+                                </button>
+                                <button
+                                    onClick={onPractice}
+                                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
+                                >
+                                    🎯 Practice
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={onViewTournaments}
+                                className="w-full px-6 py-3 bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-500 hover:to-yellow-500 text-white font-bold rounded-lg transition-all shadow-lg"
+                            >
+                                🏆 Tournaments
+                            </button>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
                                     onClick={() => setShowTimeControlModal(true)}
                                     className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
                                 >
@@ -99,11 +121,6 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <button
-                                    onClick={onPlayAI}
-                                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold rounded-lg transition-all border border-purple-500"
-                                >
                                     🤖 Play vs AI
                                 </button>
                                 <button
@@ -114,126 +131,130 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                                 </button>
                             </div>
 
-                            <button
-                                onClick={onViewHistory}
-                                className="w-full px-6 py-2 text-slate-400 hover:text-white transition-colors text-sm underline"
-                            >
-                                📜 View Game History
-                            </button>
-                        </div>
+                <button
+                    onClick={onViewHistory}
+                    className="w-full px-6 py-2 text-slate-400 hover:text-white transition-colors text-sm underline"
+                >
+                    📜 View Game History
+                </button>
+            </div>
                     )}
-                </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6 text-left">
-                <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                    <h3 className="text-lg font-semibold mb-3 text-slate-300 flex items-center gap-2">
-                        <span>📜</span> Rules
-                    </h3>
-                    <ul className="space-y-2 text-sm text-slate-400">
-                        <li className="flex items-start gap-2">
-                            <span className="text-orange-500">•</span> Choose 4 unique digits (0-9)
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <span className="text-orange-500">•</span> Order matters exactly
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <span className="text-orange-500">•</span> Deduce opponent's number
-                        </li>
-                    </ul>
-                </div>
-
-                <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                    <h3 className="text-lg font-semibold mb-3 text-slate-300 flex items-center gap-2">
-                        <span>💡</span> Meaning
-                    </h3>
-                    <ul className="space-y-2 text-sm text-slate-400">
-                        <li className="flex items-start gap-2">
-                            <span className="text-dead font-bold">Dead</span>: Correct digit, correct spot
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <span className="text-wounded font-bold">Wounded</span>: Correct digit, wrong spot
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <span className="text-green-400 font-bold">Win</span>: 4 Dead
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            {/* Join Private Game Modal */}
-            {showJoinModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowJoinModal(false)}>
-                    <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-                        <h3 className="text-2xl font-bold mb-4">Join Private Game</h3>
-                        <p className="text-slate-400 mb-6">Enter the 6-character code from your friend:</p>
-
-                        <input
-                            type="text"
-                            maxLength={6}
-                            value={joinCode}
-                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                            placeholder="ABC123"
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-center font-mono text-2xl tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-orange-500 mb-4"
-                        />
-
-                        {joinError && (
-                            <p className="text-red-400 text-sm mb-4">{joinError}</p>
-                        )}
-
-                        <div className="flex gap-4">
-                            <button
-                                onClick={() => setShowJoinModal(false)}
-                                className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleJoinSubmit}
-                                className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-lg transition-colors"
-                            >
-                                Join Game
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Time Control Modal */}
-            {showTimeControlModal && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full shadow-2xl">
-                        <h3 className="text-2xl font-bold mb-4">Create Private Game</h3>
-
-                        <TimeControlSelector
-                            onSelect={setSelectedTimeControl}
-                            selectedTime={selectedTimeControl}
-                        />
-
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={() => {
-                                    onCreatePrivate({ timeControlSeconds: selectedTimeControl });
-                                    setShowTimeControlModal(false);
-                                    setSelectedTimeControl(null);
-                                }}
-                                className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-lg transition-colors"
-                            >
-                                Create Game
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowTimeControlModal(false);
-                                    setSelectedTimeControl(null);
-                                }}
-                                className="px-6 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
+            </div >
+
+        <div className="grid md:grid-cols-2 gap-6 text-left">
+            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                <h3 className="text-lg font-semibold mb-3 text-slate-300 flex items-center gap-2">
+                    <span>📜</span> Rules
+                </h3>
+                <ul className="space-y-2 text-sm text-slate-400">
+                    <li className="flex items-start gap-2">
+                        <span className="text-orange-500">•</span> Choose 4 unique digits (0-9)
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-orange-500">•</span> Order matters exactly
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-orange-500">•</span> Deduce opponent's number
+                    </li>
+                </ul>
+            </div>
+
+            <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                <h3 className="text-lg font-semibold mb-3 text-slate-300 flex items-center gap-2">
+                    <span>💡</span> Meaning
+                </h3>
+                <ul className="space-y-2 text-sm text-slate-400">
+                    <li className="flex items-start gap-2">
+                        <span className="text-dead font-bold">Dead</span>: Correct digit, correct spot
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-wounded font-bold">Wounded</span>: Correct digit, wrong spot
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-green-400 font-bold">Win</span>: 4 Dead
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+    {/* Join Private Game Modal */ }
+    {
+        showJoinModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowJoinModal(false)}>
+                <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-2xl font-bold mb-4">Join Private Game</h3>
+                    <p className="text-slate-400 mb-6">Enter the 6-character code from your friend:</p>
+
+                    <input
+                        type="text"
+                        maxLength={6}
+                        value={joinCode}
+                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                        placeholder="ABC123"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-center font-mono text-2xl tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-orange-500 mb-4"
+                    />
+
+                    {joinError && (
+                        <p className="text-red-400 text-sm mb-4">{joinError}</p>
+                    )}
+
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => setShowJoinModal(false)}
+                            className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleJoinSubmit}
+                            className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-lg transition-colors"
+                        >
+                            Join Game
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    {/* Time Control Modal */ }
+    {
+        showTimeControlModal && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full shadow-2xl">
+                    <h3 className="text-2xl font-bold mb-4">Create Private Game</h3>
+
+                    <TimeControlSelector
+                        onSelect={setSelectedTimeControl}
+                        selectedTime={selectedTimeControl}
+                    />
+
+                    <div className="flex gap-3 mt-6">
+                        <button
+                            onClick={() => {
+                                onCreatePrivate({ timeControlSeconds: selectedTimeControl });
+                                setShowTimeControlModal(false);
+                                setSelectedTimeControl(null);
+                            }}
+                            className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-lg transition-colors"
+                        >
+                            Create Game
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowTimeControlModal(false);
+                                setSelectedTimeControl(null);
+                            }}
+                            className="px-6 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+        </div >
     );
 }

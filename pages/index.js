@@ -9,13 +9,15 @@ import DifficultyModal from '../components/DifficultyModal';
 import Toast from '../components/Toast';
 import LevelUpModal from '../components/LevelUpModal';
 import AchievementToast from '../components/AchievementToast';
+import TournamentLobby from '../components/TournamentLobby';
+import TournamentView from '../components/TournamentView';
 
 let socket;
 let socketInitializing = false;
 
 export default function Home() {
     const [user, setUser] = useState(null);
-    const [view, setView] = useState('loading'); // loading | auth | lobby | game | history
+    const [view, setView] = useState('loading'); // loading | auth | lobby | game | history | tournaments | tournament
     const [game, setGame] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const [privateGameCode, setPrivateGameCode] = useState(null);
@@ -25,6 +27,7 @@ export default function Home() {
     const [toast, setToast] = useState(null);
     const [levelUpData, setLevelUpData] = useState(null);
     const [achievementData, setAchievementData] = useState(null);
+    const [currentTournament, setCurrentTournament] = useState(null);
 
     // Initial Auth Check
     useEffect(() => {
@@ -298,6 +301,20 @@ export default function Home() {
         setView('lobby');
     };
 
+    const handleViewTournaments = () => {
+        setView('tournaments');
+    };
+
+    const handleViewTournament = (tournament) => {
+        setCurrentTournament(tournament);
+        setView('tournament');
+    };
+
+    const handleBackFromTournaments = () => {
+        setView('lobby');
+        setCurrentTournament(null);
+    };
+
     // Enrich game object with myId for GameView
     const gameWithMyId = game ? { ...game, myId: user?.id } : null;
     // Also enrich guesses with isMine if needed, but easier to do in GameView using myId
@@ -331,6 +348,7 @@ export default function Home() {
                         onViewHistory={handleViewHistory}
                         onPlayAI={handlePlayAI}
                         onPractice={handlePractice}
+                        onViewTournaments={handleViewTournaments}
                         isSearching={isSearching}
                         privateGameCode={privateGameCode}
                         onCancelSearch={handleCancelSearch}
@@ -349,6 +367,24 @@ export default function Home() {
                     history={gameHistory}
                     user={user}
                     onBack={handleBackToLobby}
+                />
+            )}
+
+            {view === 'tournaments' && (
+                <TournamentLobby
+                    socket={socket}
+                    user={user}
+                    onBack={handleBackFromTournaments}
+                    onViewTournament={handleViewTournament}
+                />
+            )}
+
+            {view === 'tournament' && currentTournament && (
+                <TournamentView
+                    tournament={currentTournament}
+                    socket={socket}
+                    user={user}
+                    onBack={handleBackFromTournaments}
                 />
             )}
 
