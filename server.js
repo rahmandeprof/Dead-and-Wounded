@@ -410,18 +410,28 @@ app.prepare().then(async () => {
                     const p1Socket = userSockets.get(game.player1_id);
                     const p2Socket = userSockets.get(game.player2_id);
 
-                    const p1Guesses = await db.guessOps.getByPlayer(gameId, game.player1_id);
-                    const p2Guesses = await db.guessOps.getByPlayer(gameId, game.player2_id);
+                    // Get all guesses and mark them for each player
+                    const allGuessesForGame = await db.guessOps.getAll(gameId);
+
+                    const p1GuessesWithFlags = allGuessesForGame.map(g => ({
+                        ...g,
+                        isMine: g.player_id === game.player1_id
+                    }));
+
+                    const p2GuessesWithFlags = allGuessesForGame.map(g => ({
+                        ...g,
+                        isMine: g.player_id === game.player2_id
+                    }));
 
                     if (p1Socket) p1Socket.emit('game:guess_result', {
                         ...formatGameState(updatedGame, game.player1_id),
                         lastGuess: guessData,
-                        guesses: p1Guesses
+                        guesses: p1GuessesWithFlags
                     });
                     if (p2Socket) p2Socket.emit('game:guess_result', {
                         ...formatGameState(updatedGame, game.player2_id),
                         lastGuess: guessData,
-                        guesses: p2Guesses
+                        guesses: p2GuessesWithFlags
                     });
 
                     // Handle AI turn if this is an AI game
