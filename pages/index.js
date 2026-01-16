@@ -201,17 +201,6 @@ export default function Home() {
             setShowShareCard(true);
         });
 
-        return () => {
-            socket.off('game:found');
-            socket.off('game:private_created');
-            socket.off('game:history_result');
-            socket.off('game:error');
-            socket.off('level:up');
-            socket.off('achievements:unlocked');
-            socket.off('dignifiables:unlocked');
-            socket.off('game:over');
-        };
-
         socket.on('game:ai_created', (data) => {
             setGame(data);
             setView('game');
@@ -221,6 +210,19 @@ export default function Home() {
             setGame(data);
             setView('game');
         });
+
+        return () => {
+            socket.off('game:found');
+            socket.off('game:private_created');
+            socket.off('game:history_result');
+            socket.off('game:error');
+            socket.off('level:up');
+            socket.off('achievements:unlocked');
+            socket.off('dignifiables:unlocked');
+            socket.off('game:over');
+            socket.off('game:ai_created');
+            socket.off('game:practice_created');
+        };
 
         socket.on('game:ai_thinking', (data) => {
             setAiThinking(data.thinking);
