@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import TimeControlSelector from './TimeControlSelector';
 
-export default function LobbyView({ onFindGame, onCreatePrivate, onJoinPrivate, onViewHistory, onPlayAI, onPractice, isSearching, privateGameCode, onCancelSearch }) {
+export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistory, onPlayAI, onPractice, onFindGame, isSearching, privateGameCode, onCancelSearch }) {
     const [showJoinModal, setShowJoinModal] = useState(false);
+    const [showTimeControlModal, setShowTimeControlModal] = useState(false);
+    const [selectedTimeControl, setSelectedTimeControl] = useState(null);
     const [joinCode, setJoinCode] = useState('');
     const [joinError, setJoinError] = useState('');
 
@@ -83,7 +86,7 @@ export default function LobbyView({ onFindGame, onCreatePrivate, onJoinPrivate, 
 
                             <div className="grid grid-cols-2 gap-4">
                                 <button
-                                    onClick={onCreatePrivate}
+                                    onClick={() => setShowTimeControlModal(true)}
                                     className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
                                 >
                                     🔒 Create Private
@@ -190,6 +193,42 @@ export default function LobbyView({ onFindGame, onCreatePrivate, onJoinPrivate, 
                                 className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-lg transition-colors"
                             >
                                 Join Game
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Time Control Modal */}
+            {showTimeControlModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full shadow-2xl">
+                        <h3 className="text-2xl font-bold mb-4">Create Private Game</h3>
+
+                        <TimeControlSelector
+                            onSelect={setSelectedTimeControl}
+                            selectedTime={selectedTimeControl}
+                        />
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    onCreatePrivate({ timeControlSeconds: selectedTimeControl });
+                                    setShowTimeControlModal(false);
+                                    setSelectedTimeControl(null);
+                                }}
+                                className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-lg transition-colors"
+                            >
+                                Create Game
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowTimeControlModal(false);
+                                    setSelectedTimeControl(null);
+                                }}
+                                className="px-6 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg transition-colors"
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>
