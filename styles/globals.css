@@ -22,6 +22,40 @@
     }
 }
 
+/* Confetti animation */
+@keyframes confetti {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+.animate-confetti {
+    animation: confetti 3s ease-in forwards;
+}
+
+/* Slow pulse for level badge */
+@keyframes pulse-slow {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.animate-pulse-slow {
+    animation: pulse-slow 2s ease-in-out infinite;
+}
+
 .text-dead {
     color: #ef4444;
 }
