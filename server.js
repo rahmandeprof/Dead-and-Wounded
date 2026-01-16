@@ -195,7 +195,19 @@ app.prepare().then(async () => {
                 }
 
                 const gameId = uuidv4();
-                await db.gameOps.createPrivate(gameId, userId, gameCode);
+                const { timeControlSeconds } = data || {};
+
+                // Validate time control if provided (minimum 30 seconds)
+                if (timeControlSeconds !== undefined && timeControlSeconds !== null) {
+                    if (timeControlSeconds < 30) {
+                        socket.emit('game:error', { message: 'Minimum time control is 30 seconds' });
+                        return;
+                    }
+                    await db.gameOps.createPrivateTimed(gameId, userId, gameCode, timeControlSeconds);
+                } else {
+                    await db.gameOps.createPrivate(gameId, userId, gameCode);
+                }
+
                 socket.emit('game:private_created', { gameId, gameCode });
             } catch (error) {
                 console.error('Create private game error:', error);
