@@ -99,6 +99,7 @@ app.prepare().then(async () => {
             status: status,
             hasSetSecret: hasSetSecret,
             isYourTurn: game.current_turn === userId,
+            yourSecret: isPlayer1 ? game.player1_secret : game.player2_secret,
             opponent: {
                 username: isPlayer1 ? game.player2_username : game.player1_username,
                 hasSetSecret: opponentHasSetSecret

@@ -173,35 +173,64 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
                 </div>
             </div>
 
-            {/* RIGHT: History */}
+            {/* RIGHT: History - Two Column Layout */}
             <div className="lg:col-span-5 bg-slate-800 rounded-xl border border-slate-700 flex flex-col h-[500px] shadow-xl">
                 <div className="p-4 border-b border-slate-700 bg-slate-800/50 rounded-t-xl">
                     <h3 className="font-bold text-slate-300">Guess History</h3>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                     {(!game.guesses || game.guesses.length === 0) && (
                         <div className="text-center text-slate-500 py-8 italic">No guesses yet</div>
                     )}
-                    {game.guesses?.map((g, i) => {
-                        const isMe = g.player_username === game.opponent?.username ? false : true; // Assuming we know current user? Actually username is in g.player_username
-                        // Better way: Check if g.id belongs to current user or just rely on turn flow?
-                        // Actually, `guesses` in game object might need to distinguish players.
-                        // Let's assume passed `game.guesses` contains all guesses or we filter.
-                        return (
-                            <div key={i} className={`flex justify-between items-center p-3 rounded-lg ${g.isMine ? 'bg-slate-700/50 border border-slate-600' : 'bg-slate-900/30'
-                                }`}>
-                                <span className="font-mono text-lg font-bold tracking-widest text-slate-200">{g.guess}</span>
-                                <div className="flex gap-4 text-sm font-bold">
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-dead">💀 {g.dead}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-wounded">🩹 {g.wounded}</span>
-                                    </div>
+                    {game.guesses && game.guesses.length > 0 && (
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* My Guesses Column */}
+                            <div>
+                                <h4 className="text-sm font-bold text-green-400 mb-3 flex items-center gap-2">
+                                    <span>👤</span> My Guesses
+                                </h4>
+                                <div className="space-y-2">
+                                    {game.guesses.filter(g => g.isMine).map((g, i) => (
+                                        <div key={i} className="bg-green-900/20 border border-green-700/50 p-3 rounded-lg">
+                                            <div className="font-mono text-lg font-bold tracking-widest text-green-300 mb-1">
+                                                {g.guess}
+                                            </div>
+                                            <div className="flex gap-3 text-xs">
+                                                <span className="text-red-400">💀 {g.dead}</span>
+                                                <span className="text-yellow-400">🩹 {g.wounded}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {game.guesses.filter(g => g.isMine).length === 0 && (
+                                        <div className="text-slate-500 text-sm italic">No guesses yet</div>
+                                    )}
                                 </div>
                             </div>
-                        );
-                    })}
+
+                            {/* Opponent's Guesses Column */}
+                            <div>
+                                <h4 className="text-sm font-bold text-orange-400 mb-3 flex items-center gap-2">
+                                    <span>🎯</span> {game.opponent?.username || 'Opponent'}
+                                </h4>
+                                <div className="space-y-2">
+                                    {game.guesses.filter(g => !g.isMine).map((g, i) => (
+                                        <div key={i} className="bg-orange-900/20 border border-orange-700/50 p-3 rounded-lg">
+                                            <div className="font-mono text-lg font-bold tracking-widest text-orange-300 mb-1">
+                                                {g.guess}
+                                            </div>
+                                            <div className="flex gap-3 text-xs">
+                                                <span className="text-red-400">💀 {g.dead}</span>
+                                                <span className="text-yellow-400">🩹 {g.wounded}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {game.guesses.filter(g => !g.isMine).length === 0 && (
+                                        <div className="text-slate-500 text-sm italic">No guesses yet</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
