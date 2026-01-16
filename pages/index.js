@@ -7,6 +7,8 @@ import GameView from '../components/GameView';
 import HistoryView from '../components/HistoryView';
 import DifficultyModal from '../components/DifficultyModal';
 import Toast from '../components/Toast';
+import LevelUpModal from '../components/LevelUpModal';
+import AchievementToast from '../components/AchievementToast';
 
 let socket;
 let socketInitializing = false;
@@ -21,6 +23,8 @@ export default function Home() {
     const [showDifficultyModal, setShowDifficultyModal] = useState(false);
     const [aiThinking, setAiThinking] = useState(false);
     const [toast, setToast] = useState(null);
+    const [levelUpData, setLevelUpData] = useState(null);
+    const [achievementData, setAchievementData] = useState(null);
 
     // Initial Auth Check
     useEffect(() => {
@@ -159,6 +163,16 @@ export default function Home() {
             setToast({ message: data.message, type: 'error' });
             setIsSearching(false);
             setPrivateGameCode(null);
+        });
+
+        socket.on('level:up', (data) => {
+            setLevelUpData(data);
+        });
+
+        socket.on('achievements:unlocked', (data) => {
+            if (data.achievements && data.achievements.length > 0) {
+                setAchievementData(data.achievements[0]); // Show first achievement
+            }
         });
 
         socket.on('game:ai_created', (data) => {
@@ -353,6 +367,23 @@ export default function Home() {
                     message={toast.message}
                     type={toast.type}
                     onClose={() => setToast(null)}
+                />
+            )}
+
+            {/* Level Up Modal */}
+            {levelUpData && (
+                <LevelUpModal
+                    newLevel={levelUpData.newLevel}
+                    rewards={[]} // Can add rewards based on level later
+                    onClose={() => setLevelUpData(null)}
+                />
+            )}
+
+            {/* Achievement Toast */}
+            {achievementData && (
+                <AchievementToast
+                    achievement={achievementData}
+                    onClose={() => setAchievementData(null)}
                 />
             )}
         </Layout>

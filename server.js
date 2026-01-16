@@ -561,8 +561,32 @@ app.prepare().then(async () => {
                                 await db.guessOps.add(gameId, null, aiGuess, aiResult.dead, aiResult.wounded);
 
                                 if (gameLogic.isWinningGuess(aiResult.dead)) {
-                                    await db.gameOps.end(null, gameId);
-                                    await db.userOps.updateStats(0, 1, userId);
+                                    await db.gameOps.end(userId, gameId);
+                                    await db.userOps.updateStats(1, 0, userId);
+                                    await db.userOps.updateStreak(userId, true);
+
+                                    // Award XP for AI win
+                                    const { calculateXP, getLevelFromXP, checkAchievements } = require('./lib/progression');
+                                    const xpGained = calculateXP(game, userId, userId, game.ai_difficulty);
+                                    await db.userOps.addXP(userId, xpGained);
+
+                                    // Check for level up
+                                    const user = await db.userOps.findById(userId);
+                                    const levelData = getLevelFromXP(user.xp);
+
+                                    if (levelData.level > user.level) {
+                                        await db.userOps.updateLevel(userId, levelData.level);
+                                        socket.emit('level:up', {
+                                            newLevel: levelData.level,
+                                            xpGained
+                                        });
+                                    }
+
+                                    // Check achievements
+                                    const achievements = await checkAchievements(db, userId, game, userId);
+                                    if (achievements.length > 0) {
+                                        socket.emit('achievements:unlocked', { achievements });
+                                    }
 
                                     const finishedGame = await db.gameOps.findById(gameId);
                                     const allGuesses = await db.guessOps.getAll(gameId);
