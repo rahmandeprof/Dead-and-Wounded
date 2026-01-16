@@ -32,8 +32,12 @@ const sessionMiddleware = session({
 
 // Initialize DB
 app.prepare().then(async () => {
+    console.log('🔍 Connecting to database...');
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+
     try {
-        await db.initDatabase();
+        await db.init();
         console.log('✅ Database initialized successfully');
     } catch (error) {
         console.error('⚠️ Database initialization failed:', error.message);
