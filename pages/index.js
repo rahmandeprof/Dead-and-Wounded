@@ -189,6 +189,29 @@ export default function Home() {
             }
         });
 
+        socket.on('game:over', (data) => {
+            // Store game data for share card
+            setShareGameData({
+                ...game,
+                winnerId: data.winner,
+                dignifiables: data.dignifiables || [],
+                duration: data.duration,
+                opponent: data.opponent
+            });
+            setShowShareCard(true);
+        });
+
+        return () => {
+            socket.off('game:found');
+            socket.off('game:private_created');
+            socket.off('game:history_result');
+            socket.off('game:error');
+            socket.off('level:up');
+            socket.off('achievements:unlocked');
+            socket.off('dignifiables:unlocked');
+            socket.off('game:over');
+        };
+
         socket.on('game:ai_created', (data) => {
             setGame(data);
             setView('game');
