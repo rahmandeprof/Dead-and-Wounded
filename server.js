@@ -636,6 +636,70 @@ app.prepare().then(async () => {
                                         });
                                     }
                                 }
+                            } else {
+                                // Advance to next round
+                                const nextRoundMatches = await db.tournamentOps.advanceRound(tournamentMatch.tournament_id);
+                                const updatedTournament = await db.tournamentOps.findById(tournamentMatch.tournament_id);
+
+                                // Create games for next round
+                                const { v4: uuidv4 } = require('uuid');
+                                for (const pairing of nextRoundMatches) {
+                                    const gameId = uuidv4();
+
+                                    // Create game with time control if tournament has it
+                                    if (tournament.time_control_seconds) {
+                                        await db.gameOps.createPrivateTimed(
+                                            gameId,
+                                            pairing.player1_id,
+                                            null,
+                                            tournament.time_control_seconds
+                                        );
+                                    } else {
+                                        await db.gameOps.createPrivate(gameId, pairing.player1_id, null);
+                                    }
+
+                                    // Join player 2
+                                    await db.gameOps.join(pairing.player2_id, gameId);
+
+                                    // Get match ID for this pairing
+                                    const matchResult = await db.pool.query(
+                                        `SELECT id FROM tournament_matches 
+                                         WHERE tournament_id = $1 AND round_number = $2 
+                                         AND player1_id = $3 AND player2_id = $4`,
+                                        [tournamentMatch.tournament_id, updatedTournament.current_round, pairing.player1_id, pairing.player2_id]
+                                    );
+
+                                    if (matchResult.rows.length > 0) {
+                                        await db.tournamentOps.linkGameToMatch(matchResult.rows[0].id, gameId);
+                                    }
+
+                                    // Notify both players
+                                    const player1Socket = userSockets.get(pairing.player1_id);
+                                    const player2Socket = userSockets.get(pairing.player2_id);
+
+                                    const game = await db.gameOps.findById(gameId);
+
+                                    if (player1Socket) {
+                                        player1Socket.emit('game:found', formatGameState(game, pairing.player1_id));
+                                    }
+                                    if (player2Socket) {
+                                        player2Socket.emit('game:found', formatGameState(game, pairing.player2_id));
+                                    }
+                                }
+
+                                // Notify all players of new round
+                                const players = await db.tournamentOps.getPlayers(tournamentMatch.tournament_id);
+                                const standings = await db.tournamentOps.getStandings(tournamentMatch.tournament_id);
+
+                                for (const player of players) {
+                                    const playerSocket = userSockets.get(player.user_id);
+                                    if (playerSocket) {
+                                        playerSocket.emit('tournament:round_started', {
+                                            tournament: updatedTournament,
+                                            standings
+                                        });
+                                    }
+                                }
                             }
                         }
                     }
