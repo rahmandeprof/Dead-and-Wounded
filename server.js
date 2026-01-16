@@ -258,6 +258,122 @@ app.prepare().then(async () => {
             }
         });
 
+        // ===== TOURNAMENT EVENTS =====
+
+        socket.on('tournament:create', async (data) => {
+            try {
+                const { name, maxPlayers, timeControlSeconds, minLevel } = data;
+
+                if (!name || name.trim().length === 0) {
+                    socket.emit('game:error', { message: 'Tournament name required' });
+                    return;
+                }
+
+                const tournamentId = await db.tournamentOps.create(userId, name.trim(), {
+                    maxPlayers: maxPlayers || 8,
+                    timeControlSeconds,
+                    minLevel: minLevel || 1
+                });
+
+                // Creator automatically joins
+                const user = await db.userOps.findById(userId);
+                await db.tournamentOps.join(tournamentId, userId, user.username, user.level);
+
+                const tournament = await db.tournamentOps.findById(tournamentId);
+                socket.emit('tournament:created', { tournament });
+
+                // Broadcast to all clients
+                io.emit('tournament:list_updated');
+            } catch (error) {
+                console.error('Create tournament error:', error);
+                socket.emit('game:error', { message: error.message || 'Failed to create tournament' });
+            }
+        });
+
+        socket.on('tournament:join', async (data) => {
+            try {
+                const { tournamentId } = data;
+                const user = await db.userOps.findById(userId);
+
+                await db.tournamentOps.join(tournamentId, userId, user.username, user.level);
+
+                const tournament = await db.tournamentOps.findById(tournamentId);
+                const players = await db.tournamentOps.getPlayers(tournamentId);
+
+                socket.emit('tournament:joined', { tournament, players });
+
+                // Notify all players in tournament
+                io.emit('tournament:updated', { tournamentId, players });
+                io.emit('tournament:list_updated');
+            } catch (error) {
+                console.error('Join tournament error:', error);
+                socket.emit('game:error', { message: error.message || 'Failed to join tournament' });
+            }
+        });
+
+        socket.on('tournament:leave', async (data) => {
+            try {
+                const { tournamentId } = data;
+
+                await db.tournamentOps.leave(tournamentId, userId);
+
+                socket.emit('tournament:left', { tournamentId });
+
+                // Notify remaining players
+                const players = await db.tournamentOps.getPlayers(tournamentId);
+                io.emit('tournament:updated', { tournamentId, players });
+                io.emit('tournament:list_updated');
+            } catch (error) {
+                console.error('Leave tournament error:', error);
+                socket.emit('game:error', { message: error.message || 'Failed to leave tournament' });
+            }
+        });
+
+        socket.on('tournament:start', async (data) => {
+            try {
+                const { tournamentId } = data;
+                const tournament = await db.tournamentOps.findById(tournamentId);
+
+                if (tournament.creator_id !== userId) {
+                    socket.emit('game:error', { message: 'Only creator can start tournament' });
+                    return;
+                }
+
+                await db.tournamentOps.start(tournamentId);
+
+                const updatedTournament = await db.tournamentOps.findById(tournamentId);
+                const matches = await db.tournamentOps.getMatches(tournamentId, 1);
+
+                // Notify all players
+                const players = await db.tournamentOps.getPlayers(tournamentId);
+                for (const player of players) {
+                    const playerSocket = userSockets.get(player.user_id);
+                    if (playerSocket) {
+                        playerSocket.emit('tournament:started', {
+                            tournament: updatedTournament,
+                            matches,
+                            players
+                        });
+                    }
+                }
+
+                io.emit('tournament:list_updated');
+            } catch (error) {
+                console.error('Start tournament error:', error);
+                socket.emit('game:error', { message: error.message || 'Failed to start tournament' });
+            }
+        });
+
+        socket.on('tournament:get_list', async () => {
+            try {
+                const tournaments = await db.tournamentOps.findOpen();
+                socket.emit('tournament:list', { tournaments });
+            } catch (error) {
+                console.error('Get tournament list error:', error);
+                socket.emit('game:error', { message: 'Failed to load tournaments' });
+            }
+        });
+
         socket.on('game:history', async ({ limit = 20 }) => {
             try {
                 const history = await db.gameOps.getHistory(userId, limit);
