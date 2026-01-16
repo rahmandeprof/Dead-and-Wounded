@@ -552,6 +552,44 @@ app.prepare().then(async () => {
                     await db.userOps.updateStreak(userId, true);
                     await db.userOps.updateStreak(loserId, false);
 
+                    // Check if this is a tournament match
+                    const tournamentMatch = await db.tournamentOps.getMatchByGameId(gameId);
+                    if (tournamentMatch) {
+                        // Record tournament result
+                        await db.tournamentOps.recordResult(tournamentMatch.id, userId);
+
+                        // Check if round is complete
+                        const isComplete = await db.tournamentOps.isRoundComplete(
+                            tournamentMatch.tournament_id,
+                            tournamentMatch.round_number
+                        );
+
+                        if (isComplete) {
+                            const tournament = await db.tournamentOps.findById(tournamentMatch.tournament_id);
+
+                            // Check if tournament is complete
+                            if (tournamentMatch.round_number >= tournament.total_rounds) {
+                                await db.tournamentOps.complete(tournamentMatch.tournament_id);
+
+                                // Get final standings
+                                const standings = await db.tournamentOps.getStandings(tournamentMatch.tournament_id);
+
+                                // Notify all players
+                                const players = await db.tournamentOps.getPlayers(tournamentMatch.tournament_id);
+                                for (const player of players) {
+                                    const playerSocket = userSockets.get(player.user_id);
+                                    if (playerSocket) {
+                                        playerSocket.emit('tournament:complete', {
+                                            tournament,
+                                            standings,
+                                            winner: standings[0]
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Award XP
                     const { calculateXP, getLevelFromXP, checkAchievements } = require('./lib/progression');
                     const winnerXP = calculateXP(game, userId, userId);
