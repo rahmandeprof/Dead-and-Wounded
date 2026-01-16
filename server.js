@@ -411,6 +411,180 @@ app.prepare().then(async () => {
             }
         });
 
+        // ===== ANALYTICS HANDLERS =====
+        socket.on('stats:get', async () => {
+            try {
+                const stats = await db.analyticsOps.getPlayerStats(userId);
+                socket.emit('stats:data', stats);
+            } catch (error) {
+                console.error('Get stats error:', error);
+                socket.emit('game:error', { message: 'Failed to load statistics' });
+            }
+        });
+
+        // ===== SOCIAL HANDLERS =====
+        socket.on('friend:request', async (data) => {
+            try {
+                const { friendId } = data;
+                await db.socialOps.sendFriendRequest(userId, friendId);
+
+                // Notify the friend
+                const friendSocket = userSockets.get(friendId);
+                if (friendSocket) {
+                    friendSocket.emit('friend:request_received', {
+                        userId,
+                        username
+                    });
+                }
+
+                socket.emit('friend:request_sent', { friendId });
+            } catch (error) {
+                console.error('Friend request error:', error);
+                socket.emit('game:error', { message: error.message || 'Failed to send friend request' });
+            }
+        });
+
+        socket.on('friend:accept', async (data) => {
+            try {
+                const { friendId } = data;
+                await db.socialOps.acceptFriendRequest(userId, friendId);
+
+                // Notify both users
+                const friendSocket = userSockets.get(friendId);
+                if (friendSocket) {
+                    friendSocket.emit('friend:accepted', {
+                        userId,
+                        username
+                    });
+                }
+
+                socket.emit('friend:accepted', { friendId });
+            } catch (error) {
+                console.error('Accept friend error:', error);
+                socket.emit('game:error', { message: 'Failed to accept friend request' });
+            }
+        });
+
+        socket.on('friend:reject', async (data) => {
+            try {
+                const { friendId } = data;
+                await db.socialOps.rejectFriendRequest(userId, friendId);
+                socket.emit('friend:rejected', { friendId });
+            } catch (error) {
+                console.error('Reject friend error:', error);
+                socket.emit('game:error', { message: 'Failed to reject friend request' });
+            }
+        });
+
+        socket.on('friend:remove', async (data) => {
+            try {
+                const { friendId } = data;
+                await db.socialOps.removeFriend(userId, friendId);
+
+                // Notify the friend
+                const friendSocket = userSockets.get(friendId);
+                if (friendSocket) {
+                    friendSocket.emit('friend:removed', { userId });
+                }
+
+                socket.emit('friend:removed', { friendId });
+            } catch (error) {
+                console.error('Remove friend error:', error);
+                socket.emit('game:error', { message: 'Failed to remove friend' });
+            }
+        });
+
+        socket.on('friend:list', async () => {
+            try {
+                const friends = await db.socialOps.getFriends(userId);
+                const pendingRequests = await db.socialOps.getPendingRequests(userId);
+
+                socket.emit('friend:list_data', {
+                    friends,
+                    pendingRequests
+                });
+            } catch (error) {
+                console.error('Get friends error:', error);
+                socket.emit('game:error', { message: 'Failed to load friends' });
+            }
+        });
+
+        // ===== CHALLENGE HANDLERS =====
+        socket.on('challenge:send', async (data) => {
+            try {
+                const { friendId, timeControlSeconds } = data;
+                const challengeId = await db.socialOps.sendChallenge(userId, friendId, timeControlSeconds);
+
+                // Notify the friend
+                const friendSocket = userSockets.get(friendId);
+                if (friendSocket) {
+                    friendSocket.emit('challenge:received', {
+                        challengeId,
+                        challengerId: userId,
+                        challengerUsername: username,
+                        timeControlSeconds
+                    });
+                }
+
+                socket.emit('challenge:sent', { challengeId, friendId });
+            } catch (error) {
+                console.error('Send challenge error:', error);
+                socket.emit('game:error', { message: 'Failed to send challenge' });
+            }
+        });
+
+        socket.on('challenge:accept', async (data) => {
+            try {
+                const { challengeId } = data;
+                const challenge = await db.socialOps.acceptChallenge(challengeId);
+
+                // Create game
+                const { v4: uuidv4 } = require('uuid');
+                const gameId = uuidv4();
+
+                if (challenge.time_control_seconds) {
+                    await db.gameOps.createPrivateTimed(
+                        gameId,
+                        challenge.challenger_id,
+                        null,
+                        challenge.time_control_seconds
+                    );
+                } else {
+                    await db.gameOps.createPrivate(gameId, challenge.challenger_id, null);
+                }
+
+                // Join as challenged player
+                await db.gameOps.join(userId, gameId);
+
+                // Link game to challenge
+                await db.socialOps.linkGameToChallenge(challengeId, gameId);
+
+                // Notify both players
+                const game = await db.gameOps.findById(gameId);
+
+                socket.emit('game:found', formatGameState(game, userId));
+
+                const challengerSocket = userSockets.get(challenge.challenger_id);
+                if (challengerSocket) {
+                    challengerSocket.emit('game:found', formatGameState(game, challenge.challenger_id));
+                }
+            } catch (error) {
+                console.error('Accept challenge error:', error);
+                socket.emit('game:error', { message: error.message || 'Failed to accept challenge' });
+            }
+        });
+
+        socket.on('challenge:decline', async (data) => {
+            try {
+                const { challengeId } = data;
+                await db.socialOps.declineChallenge(challengeId);
+                socket.emit('challenge:declined', { challengeId });
+            } catch (error) {
+                console.error('Decline challenge error:', error);
+                socket.emit('game:error', { message: 'Failed to decline challenge' });
+            }
+        });
+
         socket.on('game:history', async ({ limit = 20 }) => {
             try {
                 const history = await db.gameOps.getHistory(userId, limit);
