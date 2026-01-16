@@ -78,6 +78,38 @@ app.prepare().then(async () => {
     // Track connected sockets by user ID
     const userSockets = new Map();
 
+    // Helper function to format game state for client
+    function formatGameState(game, userId) {
+        if (!game) return null;
+
+        const isPlayer1 = game.player1_id === userId;
+        const hasSetSecret = isPlayer1 ? !!game.player1_secret : !!game.player2_secret;
+        const opponentHasSetSecret = isPlayer1 ? !!game.player2_secret : !!game.player1_secret;
+
+        // Determine game status for client
+        let status = game.status;
+        if (game.status === 'waiting' && !hasSetSecret) {
+            status = 'setup';
+        } else if (game.status === 'waiting' && hasSetSecret) {
+            status = 'setup'; // Still waiting for opponent
+        }
+
+        return {
+            gameId: game.id,
+            status: status,
+            hasSetSecret: hasSetSecret,
+            isYourTurn: game.current_turn === userId,
+            opponent: {
+                username: isPlayer1 ? game.player2_username : game.player1_username,
+                hasSetSecret: opponentHasSetSecret
+            },
+            guesses: [],
+            isAI: game.is_ai || false,
+            isPractice: game.is_practice || false,
+            aiDifficulty: game.ai_difficulty
+        };
+    }
+
     // Socket.IO connection handler
     io.on('connection', (socket) => {
         const session = socket.request.session;
