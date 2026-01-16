@@ -433,6 +433,57 @@ app.prepare().then(async () => {
                     const loserId = game.player1_id === userId ? game.player2_id : game.player1_id;
                     await db.userOps.updateStats(1, 0, userId);
                     await db.userOps.updateStats(0, 1, loserId);
+                    await db.userOps.updateStreak(userId, true);
+                    await db.userOps.updateStreak(loserId, false);
+
+                    // Award XP
+                    const { calculateXP, getLevelFromXP, checkAchievements } = require('./lib/progression');
+                    const winnerXP = calculateXP(game, userId, userId);
+                    const loserXP = calculateXP(game, userId, loserId);
+
+                    await db.userOps.addXP(userId, winnerXP);
+                    await db.userOps.addXP(loserId, loserXP);
+
+                    // Check for level ups
+                    const winnerUser = await db.userOps.findById(userId);
+                    const loserUser = await db.userOps.findById(loserId);
+
+                    const winnerLevelData = getLevelFromXP(winnerUser.xp);
+                    const loserLevelData = getLevelFromXP(loserUser.xp);
+
+                    if (winnerLevelData.level > winnerUser.level) {
+                        await db.userOps.updateLevel(userId, winnerLevelData.level);
+                        socket.emit('level:up', {
+                            newLevel: winnerLevelData.level,
+                            xpGained: winnerXP
+                        });
+                    }
+
+                    if (loserLevelData.level > loserUser.level) {
+                        await db.userOps.updateLevel(loserId, loserLevelData.level);
+                        const loserSocket = userSockets.get(loserId);
+                        if (loserSocket) {
+                            loserSocket.emit('level:up', {
+                                newLevel: loserLevelData.level,
+                                xpGained: loserXP
+                            });
+                        }
+                    }
+
+                    // Check achievements
+                    const winnerAchievements = await checkAchievements(db, userId, game, userId);
+                    const loserAchievements = await checkAchievements(db, loserId, game, userId);
+
+                    if (winnerAchievements.length > 0) {
+                        socket.emit('achievements:unlocked', { achievements: winnerAchievements });
+                    }
+
+                    if (loserAchievements.length > 0) {
+                        const loserSocket = userSockets.get(loserId);
+                        if (loserSocket) {
+                            loserSocket.emit('achievements:unlocked', { achievements: loserAchievements });
+                        }
+                    }
 
                     const finishedGame = await db.gameOps.findById(gameId);
                     const guesses = await db.guessOps.getAll(gameId);
