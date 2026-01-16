@@ -11,6 +11,8 @@ import LevelUpModal from '../components/LevelUpModal';
 import AchievementToast from '../components/AchievementToast';
 import TournamentLobby from '../components/TournamentLobby';
 import TournamentView from '../components/TournamentView';
+import DignifiableToast from '../components/DignifiableToast';
+import ShareResultCard from '../components/ShareResultCard';
 
 let socket;
 let socketInitializing = false;
@@ -28,6 +30,9 @@ export default function Home() {
     const [levelUpData, setLevelUpData] = useState(null);
     const [achievementData, setAchievementData] = useState(null);
     const [currentTournament, setCurrentTournament] = useState(null);
+    const [dignifiableData, setDignifiableData] = useState(null);
+    const [showShareCard, setShowShareCard] = useState(false);
+    const [shareGameData, setShareGameData] = useState(null);
 
     // Initial Auth Check
     useEffect(() => {
@@ -173,8 +178,14 @@ export default function Home() {
         });
 
         socket.on('achievements:unlocked', (data) => {
-            if (data.achievements && data.achievements.length > 0) {
-                setAchievementData(data.achievements[0]); // Show first achievement
+            setAchievementData(data.achievements);
+            setTimeout(() => setAchievementData(null), 5000);
+        });
+
+        socket.on('dignifiables:unlocked', (data) => {
+            if (data.dignifiables && data.dignifiables.length > 0) {
+                setDignifiableData(data.dignifiables[0]);
+                setTimeout(() => setDignifiableData(null), 5000);
             }
         });
 
@@ -416,10 +427,28 @@ export default function Home() {
             )}
 
             {/* Achievement Toast */}
-            {achievementData && (
+            {achievementData && achievementData.length > 0 && (
                 <AchievementToast
-                    achievement={achievementData}
+                    achievement={achievementData[0]}
                     onClose={() => setAchievementData(null)}
+                />
+            )}
+
+            {dignifiableData && (
+                <DignifiableToast
+                    dignifiable={dignifiableData}
+                    onClose={() => setDignifiableData(null)}
+                />
+            )}
+
+            {showShareCard && shareGameData && (
+                <ShareResultCard
+                    game={shareGameData}
+                    user={user}
+                    onClose={() => {
+                        setShowShareCard(false);
+                        setShareGameData(null);
+                    }}
                 />
             )}
         </Layout>

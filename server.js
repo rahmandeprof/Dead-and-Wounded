@@ -593,7 +593,7 @@ app.prepare().then(async () => {
                     // Award XP
                     const { calculateXP, getLevelFromXP, checkAchievements } = require('./lib/progression');
                     const winnerXP = calculateXP(game, userId, userId);
-                    const loserXP = calculateXP(game, userId, loserId);
+                    const loserXP = calculateXP(game, loserId, userId);
 
                     await db.userOps.addXP(userId, winnerXP);
                     await db.userOps.addXP(loserId, loserXP);
@@ -602,29 +602,29 @@ app.prepare().then(async () => {
                     const winnerUser = await db.userOps.findById(userId);
                     const loserUser = await db.userOps.findById(loserId);
 
-                    const winnerLevelData = getLevelFromXP(winnerUser.xp);
-                    const loserLevelData = getLevelFromXP(loserUser.xp);
+                    const winnerNewLevel = getLevelFromXP(winnerUser.xp);
+                    const loserNewLevel = getLevelFromXP(loserUser.xp);
 
-                    if (winnerLevelData.level > winnerUser.level) {
-                        await db.userOps.updateLevel(userId, winnerLevelData.level);
+                    if (winnerNewLevel.level > winnerUser.level) {
+                        await db.userOps.updateLevel(userId, winnerNewLevel.level);
                         socket.emit('level:up', {
-                            newLevel: winnerLevelData.level,
+                            newLevel: winnerNewLevel.level,
                             xpGained: winnerXP
                         });
                     }
 
-                    if (loserLevelData.level > loserUser.level) {
-                        await db.userOps.updateLevel(loserId, loserLevelData.level);
+                    if (loserNewLevel.level > loserUser.level) {
+                        await db.userOps.updateLevel(loserId, loserNewLevel.level);
                         const loserSocket = userSockets.get(loserId);
                         if (loserSocket) {
                             loserSocket.emit('level:up', {
-                                newLevel: loserLevelData.level,
+                                newLevel: loserNewLevel.level,
                                 xpGained: loserXP
                             });
                         }
                     }
 
-                    // Check achievements
+                    // Check for achievements
                     const winnerAchievements = await checkAchievements(db, userId, game, userId);
                     const loserAchievements = await checkAchievements(db, loserId, game, userId);
 
@@ -639,8 +639,17 @@ app.prepare().then(async () => {
                         }
                     }
 
+                    // Check for dignifiables
+                    const { checkDignifiables } = require('./lib/dignifiables');
+                    const guesses = await db.guessOps.getAll(gameId); // Changed from findByGame to getAll to match existing pattern
+                    const dignifiables = await checkDignifiables(db, game, userId, guesses);
+
+                    if (dignifiables.length > 0) {
+                        socket.emit('dignifiables:unlocked', { dignifiables });
+                    }
+
                     const finishedGame = await db.gameOps.findById(gameId);
-                    const guesses = await db.guessOps.getAll(gameId);
+                    // const guesses = await db.guessOps.getAll(gameId); // This line was moved up for dignifiables
 
                     const gameOverData = {
                         winnerId: userId,
@@ -648,7 +657,9 @@ app.prepare().then(async () => {
                         guesses: guesses,
                         player1Secret: game.player1_secret,
                         player2Secret: game.player2_secret,
-                        ...result // include last guess result
+                        ...result, // include last guess result
+                        xpEarned: winnerXP, // Added xpEarned for winner
+                        dignifiables: dignifiables // Added dignifiables for winner
                     };
 
                     const p1Socket = userSockets.get(game.player1_id);
