@@ -472,12 +472,13 @@ app.prepare().then(async () => {
                                         player1Secret: game.player1_secret,
                                         player2Secret: game.player2_secret
                                     });
+                                } else {
                                     await db.gameOps.switchTurn(userId, gameId);
                                     const gameAfterAI = await db.gameOps.findById(gameId);
-                                    const allGuesses = await db.guessOps.getAll(gameId);
+                                    const allGuessesAI = await db.guessOps.getAll(gameId);
 
                                     // Mark guesses as mine or opponent's
-                                    const guessesWithFlags = allGuesses.map(g => ({
+                                    const guessesWithFlags = allGuessesAI.map(g => ({
                                         ...g,
                                         isMine: g.player_id === userId
                                     }));
@@ -489,61 +490,62 @@ app.prepare().then(async () => {
                                         guesses: guessesWithFlags
                                     });
                                 }
-                            } catch (error) {
-                                console.error('AI turn error:', error);
-                                socket.emit('game:ai_thinking', { thinking: false });
                             }
-                        }, 1500);
-                    }
+                            } catch (error) {
+                            console.error('AI turn error:', error);
+                            socket.emit('game:ai_thinking', { thinking: false });
+                        }
+                    }, 1500);
+    }
                 }
             } catch (error) {
-                console.error('Guess error:', error);
-            }
+    console.error('Guess error:', error);
+}
         });
 
-        socket.on('disconnect', async () => {
-            console.log(`User ${username} (${userId}) disconnected`);
-            userSockets.delete(userId);
+socket.on('disconnect', async () => {
+    console.log(`User ${username} (${userId}) disconnected`);
+    userSockets.delete(userId);
 
-            // Find and handle any active games
-            const activeGame = await db.gameOps.findActiveForUser(userId);
-            if (activeGame && activeGame.status !== 'finished') {
-                const opponentId = activeGame.player1_id === userId
-                    ? activeGame.player2_id
-                    : activeGame.player1_id;
+    // Find and handle any active games
+    const activeGame = await db.gameOps.findActiveForUser(userId);
+    if (activeGame && activeGame.status !== 'finished') {
+        const opponentId = activeGame.player1_id === userId
+            ? activeGame.player2_id
+            : activeGame.player1_id;
 
-                if (opponentId) {
-                    const oppSocket = userSockets.get(opponentId);
-                    if (oppSocket) {
-                        oppSocket.emit('game:opponent_disconnected', {
-                            message: 'Opponent disconnected. Reconnecting...'
-                        });
-                    }
-                }
+        if (opponentId) {
+            const oppSocket = userSockets.get(opponentId);
+            if (oppSocket) {
+                oppSocket.emit('game:opponent_disconnected', {
+                    message: 'Opponent disconnected. Reconnecting...'
+                });
             }
-        });
+        }
+    }
+});
 
-        socket.on('game:leave', async ({ gameId }) => {
-            // (Simplify logic: just forfeit if playing)
-            const game = await db.gameOps.findById(gameId);
-            if (game && (game.status === 'playing' || game.status === 'setup')) {
-                const winnerId = game.player1_id === userId ? game.player2_id : game.player1_id;
-                await db.gameOps.end(winnerId, gameId);
-                await db.userOps.updateStats(0, 1, userId);
-                await db.userOps.updateStats(1, 0, winnerId);
+socket.on('game:leave', async ({ gameId }) => {
+    // (Simplify logic: just forfeit if playing)
+    const game = await db.gameOps.findById(gameId);
+    if (game && (game.status === 'playing' || game.status === 'setup')) {
+        const winnerId = game.player1_id === userId ? game.player2_id : game.player1_id;
+        await db.gameOps.end(winnerId, gameId);
+        await db.userOps.updateStats(0, 1, userId);
+        await db.userOps.updateStats(1, 0, winnerId);
 
-                const oppSocket = userSockets.get(winnerId);
-                if (oppSocket) oppSocket.emit('game:opponent_left', { message: 'Opponent left. You win!' });
-            } else if (game && game.status === 'waiting') {
-                await db.gameOps.delete(gameId);
-            }
-            socket.emit('game:left');
-        });
+        const oppSocket = userSockets.get(winnerId);
+        if (oppSocket) oppSocket.emit('game:opponent_left', { message: 'Opponent left. You win!' });
+    } else if (game && game.status === 'waiting') {
+        await db.gameOps.delete(gameId);
+    }
+    socket.emit('game:left');
+});
     });
 
-    server.listen(port, () => {
-        console.log(`> Ready on http://${hostname}:${port}`);
-    });
+server.listen(port, () => {
+    console.log(`> Ready on http://${hostname}:${port}`);
+});
 });
 
 
