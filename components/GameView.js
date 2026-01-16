@@ -24,9 +24,11 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
         newInputs[index] = value.slice(-1); // Only last char
         setInputs(newInputs);
 
-        // Auto advance
+        // Auto advance to next input if value entered
         if (value && index < 3) {
-            inputRefs[index + 1].current.focus();
+            setTimeout(() => {
+                inputRefs[index + 1].current?.focus();
+            }, 0);
         }
     };
 
@@ -131,8 +133,8 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
             <div className="lg:col-span-7 space-y-6">
                 <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
                     <div className={`p-4 rounded-lg text-center mb-6 transition-colors ${game.isYourTurn
-                            ? 'bg-gradient-to-r from-orange-900/40 to-amber-900/40 border border-orange-500/30'
-                            : 'bg-slate-900 border border-slate-700'
+                        ? 'bg-gradient-to-r from-orange-900/40 to-amber-900/40 border border-orange-500/30'
+                        : 'bg-slate-900 border border-slate-700'
                         }`}>
                         <h3 className={`text-xl font-bold ${game.isYourTurn ? 'text-orange-400' : 'text-slate-500'}`}>
                             {game.isYourTurn ? "Your Turn" : "Opponent's Turn"}
