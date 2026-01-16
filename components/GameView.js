@@ -34,7 +34,9 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
 
     const handleKeyDown = (index, e) => {
         if (e.key === 'Backspace' && !inputs[index] && index > 0) {
-            inputRefs[index - 1].current.focus();
+            setTimeout(() => {
+                inputRefs[index - 1].current?.focus();
+            }, 0);
         }
         if (e.key === 'Enter' && inputs.every(val => val !== '')) {
             handleSubmit();
