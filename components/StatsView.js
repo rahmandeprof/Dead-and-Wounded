@@ -1,22 +1,24 @@
-export default function StatsView({ user, onBack }) {
-    const [stats, setStats] = React.useState(null);
-    const [loading, setLoading] = React.useState(true);
+import { useState, useEffect } from 'react';
 
-    React.useEffect(() => {
+export default function StatsView({ user, onBack, socket }) {
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
         // Request stats from server
-        if (window.socket) {
-            window.socket.emit('stats:get');
+        if (socket) {
+            socket.emit('stats:get');
 
-            window.socket.on('stats:data', (data) => {
+            socket.on('stats:data', (data) => {
                 setStats(data);
                 setLoading(false);
             });
 
             return () => {
-                window.socket.off('stats:data');
+                socket.off('stats:data');
             };
         }
-    }, []);
+    }, [socket]);
 
     if (loading) {
         return (
@@ -154,8 +156,8 @@ export default function StatsView({ user, onBack }) {
                                 <div
                                     key={i}
                                     className={`w-10 h-10 rounded flex items-center justify-center font-bold ${game.result === 'win'
-                                            ? 'bg-green-600 text-white'
-                                            : 'bg-red-600 text-white'
+                                        ? 'bg-green-600 text-white'
+                                        : 'bg-red-600 text-white'
                                         }`}
                                     title={game.result === 'win' ? 'Win' : 'Loss'}
                                 >
