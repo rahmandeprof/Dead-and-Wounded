@@ -377,6 +377,41 @@ app.prepare().then(async () => {
                     return;
                 }
 
+                // Check if time has expired
+                if (game.time_control_seconds) {
+                    const timeCheck = await db.gameOps.checkTimeExpired(gameId, userId);
+                    if (timeCheck.expired) {
+                        // Time expired - opponent wins
+                        const opponentId = game.player1_id === userId ? game.player2_id : game.player1_id;
+                        await db.gameOps.end(opponentId, gameId);
+                        await db.userOps.updateStats(0, 1, userId);
+                        await db.userOps.updateStats(1, 0, opponentId);
+
+                        const finishedGame = await db.gameOps.findById(gameId);
+                        const opponentSocket = userSockets.get(opponentId);
+
+                        socket.emit('game:over', {
+                            ...formatGameState(finishedGame, userId),
+                            winnerId: opponentId,
+                            reason: 'timeout',
+                            message: 'Time expired! You lose.'
+                        });
+
+                        if (opponentSocket) {
+                            opponentSocket.emit('game:over', {
+                                ...formatGameState(finishedGame, opponentId),
+                                winnerId: opponentId,
+                                reason: 'timeout',
+                                message: 'Opponent ran out of time! You win!'
+                            });
+                        }
+                        return;
+                    }
+
+                    // Update time remaining
+                    await db.gameOps.updatePlayerTime(gameId, userId, timeCheck.timeRemaining);
+                }
+
                 // Check for duplicate guesses
                 const previousGuesses = await db.guessOps.getByPlayer(gameId, userId);
                 if (previousGuesses.some(g => g.guess === guess)) {
