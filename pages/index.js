@@ -6,6 +6,7 @@ import LobbyView from '../components/LobbyView';
 import GameView from '../components/GameView';
 import HistoryView from '../components/HistoryView';
 import DifficultyModal from '../components/DifficultyModal';
+import Toast from '../components/Toast';
 
 let socket;
 let socketInitializing = false;
@@ -19,6 +20,7 @@ export default function Home() {
     const [gameHistory, setGameHistory] = useState([]);
     const [showDifficultyModal, setShowDifficultyModal] = useState(false);
     const [aiThinking, setAiThinking] = useState(false);
+    const [toast, setToast] = useState(null);
 
     // Initial Auth Check
     useEffect(() => {
@@ -130,7 +132,7 @@ export default function Home() {
         });
 
         socket.on('game:opponent_left', (data) => {
-            alert(data.message);
+            setToast({ message: data.message, type: 'warning' });
             setGame(null);
             setIsSearching(false);
             setView('lobby');
@@ -154,7 +156,7 @@ export default function Home() {
         });
 
         socket.on('game:error', (data) => {
-            alert(data.message);
+            setToast({ message: data.message, type: 'error' });
             setIsSearching(false);
             setPrivateGameCode(null);
         });
@@ -342,6 +344,15 @@ export default function Home() {
                     socket={socket}
                     onLeave={handleLeaveGame}
                     onPlayAgain={handlePlayAgain}
+                />
+            )}
+
+            {/* Toast Notifications */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
                 />
             )}
         </Layout>
