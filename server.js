@@ -344,7 +344,44 @@ app.prepare().then(async () => {
                 const updatedTournament = await db.tournamentOps.findById(tournamentId);
                 const matches = await db.tournamentOps.getMatches(tournamentId, 1);
 
-                // Notify all players
+                // Create games for all matches in round 1
+                const { v4: uuidv4 } = require('uuid');
+                for (const match of matches) {
+                    const gameId = uuidv4();
+
+                    // Create game with time control if tournament has it
+                    if (tournament.time_control_seconds) {
+                        await db.gameOps.createPrivateTimed(
+                            gameId,
+                            match.player1_id,
+                            null, // No game code for tournament games
+                            tournament.time_control_seconds
+                        );
+                    } else {
+                        await db.gameOps.createPrivate(gameId, match.player1_id, null);
+                    }
+
+                    // Join player 2
+                    await db.gameOps.join(match.player2_id, gameId);
+
+                    // Link game to match
+                    await db.tournamentOps.linkGameToMatch(match.id, gameId);
+
+                    // Notify both players
+                    const player1Socket = userSockets.get(match.player1_id);
+                    const player2Socket = userSockets.get(match.player2_id);
+
+                    const game = await db.gameOps.findById(gameId);
+
+                    if (player1Socket) {
+                        player1Socket.emit('game:found', formatGameState(game, match.player1_id));
+                    }
+                    if (player2Socket) {
+                        player2Socket.emit('game:found', formatGameState(game, match.player2_id));
+                    }
+                }
+
+                // Notify all players tournament has started
                 const players = await db.tournamentOps.getPlayers(tournamentId);
                 for (const player of players) {
                     const playerSocket = userSockets.get(player.user_id);
@@ -573,6 +610,19 @@ app.prepare().then(async () => {
 
                                 // Get final standings
                                 const standings = await db.tournamentOps.getStandings(tournamentMatch.tournament_id);
+                                const winnerId = standings[0].user_id;
+
+                                // Award tournament winner dignifiable
+                                const { awardTournamentWinner } = require('./lib/dignifiables');
+                                const winnerDignifiable = await awardTournamentWinner(db, tournamentMatch.tournament_id, winnerId);
+
+                                // Notify winner of dignifiable
+                                const winnerSocket = userSockets.get(winnerId);
+                                if (winnerSocket) {
+                                    winnerSocket.emit('dignifiables:unlocked', {
+                                        dignifiables: [winnerDignifiable]
+                                    });
+                                }
 
                                 // Notify all players
                                 const players = await db.tournamentOps.getPlayers(tournamentMatch.tournament_id);
@@ -651,15 +701,32 @@ app.prepare().then(async () => {
                     const finishedGame = await db.gameOps.findById(gameId);
                     // const guesses = await db.guessOps.getAll(gameId); // This line was moved up for dignifiables
 
+                    // Calculate game duration
+                    const duration = finishedGame.created_at && finishedGame.updated_at
+                        ? Math.floor((new Date(finishedGame.updated_at) - new Date(finishedGame.created_at)) / 1000)
+                        : 0;
+
+                    const minutes = Math.floor(duration / 60);
+                    const seconds = duration % 60;
+                    const durationStr = `${minutes}m ${seconds}s`;
+
+                    // Get opponent info
+                    const opponentId = userId === finishedGame.player1_id ? finishedGame.player2_id : finishedGame.player1_id;
+                    const opponent = await db.userOps.findById(opponentId);
+
                     const gameOverData = {
                         winnerId: userId,
-                        winnerUsername: username,
                         guesses: guesses,
                         player1Secret: game.player1_secret,
                         player2Secret: game.player2_secret,
                         ...result, // include last guess result
-                        xpEarned: winnerXP, // Added xpEarned for winner
-                        dignifiables: dignifiables // Added dignifiables for winner
+                        xpEarned: winnerXP,
+                        dignifiables: dignifiables,
+                        duration: durationStr,
+                        opponent: {
+                            id: opponent.id,
+                            username: opponent.username
+                        }
                     };
 
                     const p1Socket = userSockets.get(game.player1_id);
