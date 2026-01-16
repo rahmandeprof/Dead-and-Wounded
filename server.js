@@ -425,7 +425,15 @@ app.prepare().then(async () => {
                     });
 
                     // Handle AI turn if this is an AI game
+                    console.log('Checking AI turn:', {
+                        is_ai: game.is_ai,
+                        is_practice: game.is_practice,
+                        nextTurn: nextTurn,
+                        userId: userId
+                    });
+
                     if (game.is_ai && !game.is_practice) {
+                        console.log('🤖 Triggering AI turn...');
                         socket.emit('game:ai_thinking', { thinking: true });
 
                         setTimeout(async () => {
