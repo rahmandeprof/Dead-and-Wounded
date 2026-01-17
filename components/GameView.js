@@ -1,57 +1,63 @@
 import { useState, useRef, useEffect } from 'react';
 import GameTimer from './GameTimer';
+import NumericKeypad from './NumericKeypad';
 
 export default function GameView({ game, socket, onLeave, onPlayAgain }) {
-    const [inputs, setInputs] = useState(['', '', '', '']);
+    // Single buffer state for current guess/secret (max 4 chars)
+    const [currentGuess, setCurrentGuess] = useState('');
     const [error, setError] = useState('');
     const [showSecret, setShowSecret] = useState(false);
-    const inputRefs = [useRef(), useRef(), useRef(), useRef()];
 
     // Reset inputs when phase changes
     useEffect(() => {
         if (game.status === 'setup' && !game.hasSetSecret) {
-            setInputs(['', '', '', '']);
-            inputRefs[0].current?.focus();
+            setCurrentGuess('');
+            setError('');
         } else if (game.status === 'playing' && game.isYourTurn) {
-            setInputs(['', '', '', '']);
-            inputRefs[0].current?.focus();
+            setCurrentGuess('');
+            setError('');
         }
     }, [game.status, game.isYourTurn, game.hasSetSecret]);
 
-    const handleInputChange = (index, value) => {
-        if (!/^\d*$/.test(value)) return;
-
-        const newInputs = [...inputs];
-        newInputs[index] = value.slice(-1); // Only last char
-        setInputs(newInputs);
-
-        // Auto advance to next input if value entered
-        if (value && index < 3) {
-            setTimeout(() => {
-                inputRefs[index + 1].current?.focus();
-            }, 0);
+    // Handle Virtual Keypad Input
+    const handleNumberInput = (num) => {
+        if (currentGuess.length < 4) {
+            setCurrentGuess(prev => prev + num);
+            setError('');
         }
     };
 
-    const handleKeyDown = (index, e) => {
-        if (e.key === 'Backspace' && !inputs[index] && index > 0) {
-            setTimeout(() => {
-                inputRefs[index - 1].current?.focus();
-            }, 0);
-        }
-        if (e.key === 'Enter' && inputs.every(val => val !== '')) {
-            handleSubmit();
-        }
+    const handleDelete = () => {
+        setCurrentGuess(prev => prev.slice(0, -1));
+        setError('');
     };
+
+    // Handle Physical Keyboard Input
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Ignore if input is focused (e.g. chat if added later)
+            if (e.target.tagName === 'INPUT') return;
+
+            if (/^[0-9]$/.test(e.key)) {
+                handleNumberInput(e.key);
+            } else if (e.key === 'Backspace') {
+                handleDelete();
+            } else if (e.key === 'Enter') {
+                handleSubmit();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [currentGuess, game.status, game.isYourTurn]);
 
     const handleSubmit = () => {
-        const value = inputs.join('');
-        if (value.length !== 4) {
+        if (currentGuess.length !== 4) {
             setError('Must be 4 digits');
             return;
         }
 
-        if (new Set(value).size !== 4) {
+        if (new Set(currentGuess).size !== 4) {
             setError('Digits must be unique');
             return;
         }
@@ -59,28 +65,24 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
         setError('');
 
         if (game.status === 'setup') {
-            socket.emit('game:secret', { gameId: game.gameId, secret: value });
+            socket.emit('game:secret', { gameId: game.gameId, secret: currentGuess });
         } else if (game.status === 'playing') {
-            socket.emit('game:guess', { gameId: game.gameId, guess: value });
+            socket.emit('game:guess', { gameId: game.gameId, guess: currentGuess });
         }
     };
 
-    const renderDigitInput = (disabled = false, type = 'text') => (
-        <div className="flex justify-center gap-3 mb-4">
-            {inputs.map((val, i) => (
-                <input
+    const renderDigitDisplay = (value, masked = false) => (
+        <div className="flex justify-center gap-3 mb-6">
+            {[0, 1, 2, 3].map((i) => (
+                <div
                     key={i}
-                    ref={inputRefs[i]}
-                    type={type}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={1}
-                    value={val}
-                    onChange={(e) => handleInputChange(i, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(i, e)}
-                    disabled={disabled}
-                    className="w-14 h-16 text-3xl font-bold text-center bg-slate-800 border-2 border-slate-700 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-4 focus:ring-orange-500/20 disabled:opacity-50 transition-all text-white"
-                />
+                    className={`w-14 h-16 flex items-center justify-center text-3xl font-bold bg-slate-800 border-2 rounded-lg transition-all
+                        ${i === value.length ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'border-slate-700'}
+                        ${value[i] ? 'text-white' : 'text-slate-600'}
+                    `}
+                >
+                    {value[i] ? (masked ? '•' : value[i]) : ''}
+                </div>
             ))}
         </div>
     );
@@ -88,13 +90,13 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
     // --- SUB-VIEWS ---
 
     const SetupPhase = () => (
-        <div className="text-center max-w-md mx-auto">
+        <div className="text-center max-w-md mx-auto flex flex-col h-full">
             <h2 className="text-2xl font-bold mb-2">Set Your Secret</h2>
-            <p className="text-slate-400 mb-8">Choose 4 unique digits. Opponent won't see this.</p>
+            <p className="text-slate-400 mb-4">Choose 4 unique digits.</p>
 
             {game.hasSetSecret ? (
-                <div className="bg-slate-800 p-8 rounded-xl border border-slate-700 flex flex-col items-center">
-                    <div className="text-4xl mb-4">🔒</div>
+                <div className="bg-slate-800 p-8 rounded-xl border border-slate-700 flex flex-col items-center animate-fade-in">
+                    <div className="text-6xl mb-4">🔒</div>
                     <p className="text-lg font-medium text-slate-300">Secret Locked!</p>
                     <p className="text-slate-500 mt-2 flex items-center gap-2">
                         <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
@@ -102,93 +104,97 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
                     </p>
                 </div>
             ) : (
-                <div className="bg-slate-800 p-8 rounded-xl border border-slate-700">
-                    {renderDigitInput(false, showSecret ? 'text' : 'password')}
+                <div className="flex-1 flex flex-col justify-between">
+                    <div>
+                        {renderDigitDisplay(currentGuess, !showSecret)}
 
-                    <div className="flex justify-center gap-6 mt-6">
-                        <label className="flex items-center gap-2 text-slate-400 cursor-pointer hover:text-white transition-colors">
-                            <input
-                                type="checkbox"
-                                checked={showSecret}
-                                onChange={(e) => setShowSecret(e.target.checked)}
-                                className="rounded border-slate-600 bg-slate-700 text-orange-500 focus:ring-orange-500"
-                            />
-                            <span>Show secret</span>
-                        </label>
+                        <div className="flex justify-center mb-4">
+                            <button
+                                onClick={() => setShowSecret(!showSecret)}
+                                className="text-sm text-slate-400 hover:text-white flex items-center gap-2 px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 transition-colors"
+                            >
+                                {showSecret ? '🙈 Hide' : '👁️ Show'} Secret
+                            </button>
+                        </div>
+
+                        {error && <p className="text-red-400 mb-2 h-6 animate-pulse">{error}</p>}
                     </div>
 
-                    {error && <p className="text-red-400 mt-4 text-sm">{error}</p>}
-
-                    <button
-                        onClick={handleSubmit}
-                        className="w-full mt-6 bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-lg shadow-lg transition-transform hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                        Lock In Secret
-                    </button>
+                    <div className="mt-auto">
+                        <NumericKeypad
+                            onNumber={handleNumberInput}
+                            onDelete={handleDelete}
+                            onEnter={handleSubmit}
+                        />
+                    </div>
                 </div>
             )}
         </div>
     );
 
     const PlayingPhase = () => (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-            {/* LEFT: Guess Input */}
-            <div className="lg:col-span-7 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
+            {/* LEFT: Game Controls (Mobile: Top/Center) */}
+            <div className="lg:col-span-7 flex flex-col h-full">
                 {/* Game Timer */}
                 {game.timeControl && (
-                    <GameTimer
-                        player1Time={game.player1Time}
-                        player2Time={game.player2Time}
-                        isPlayer1Turn={game.isPlayer1 ? game.isYourTurn : !game.isYourTurn}
-                        isMyTurn={game.isYourTurn}
-                        gameStatus={game.status}
-                        player1Name={game.isPlayer1 ? 'You' : game.opponent?.username}
-                        player2Name={game.isPlayer1 ? game.opponent?.username : 'You'}
-                    />
+                    <div className="mb-4">
+                        <GameTimer
+                            player1Time={game.player1Time}
+                            player2Time={game.player2Time}
+                            isPlayer1Turn={game.isPlayer1 ? game.isYourTurn : !game.isYourTurn}
+                            isMyTurn={game.isYourTurn}
+                            gameStatus={game.status}
+                            player1Name={game.isPlayer1 ? 'You' : game.opponent?.username}
+                            player2Name={game.isPlayer1 ? game.opponent?.username : 'You'}
+                        />
+                    </div>
                 )}
 
-                {/* Turn indicator */}
-                <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
-                    <div className={`p-4 rounded-lg text-center mb-6 transition-colors ${game.isYourTurn
+                {/* Main Interaction Area */}
+                <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700 shadow-xl flex-1 flex flex-col min-h-[400px]">
+                    <div className={`p-3 rounded-lg text-center mb-6 transition-colors ${game.isYourTurn
                         ? 'bg-gradient-to-r from-orange-900/40 to-amber-900/40 border border-orange-500/30'
-                        : 'bg-slate-900 border border-slate-700'
+                        : 'bg-slate-800 border border-slate-700'
                         }`}>
                         <h3 className={`text-xl font-bold ${game.isYourTurn ? 'text-orange-400' : 'text-slate-500'}`}>
                             {game.isYourTurn ? "Your Turn" : "Opponent's Turn"}
                         </h3>
                     </div>
 
-                    <div className="mb-2">
-                        {renderDigitInput(!game.isYourTurn)}
+                    {/* Digit Display */}
+                    <div className="flex-1 flex flex-col justify-center">
+                        {renderDigitDisplay(currentGuess)}
+                        {error && <p className="text-center text-red-400 h-6 mb-2">{error}</p>}
                     </div>
 
-                    {error && <p className="text-center text-red-400 mb-4 text-sm">{error}</p>}
-
-                    <button
-                        onClick={handleSubmit}
-                        disabled={!game.isYourTurn}
-                        className="w-full bg-slate-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-600"
-                    >
-                        Submit Guess
-                    </button>
+                    {/* Keypad (Only visible/active on your turn, but can serve as display/disabled placeholder) */}
+                    <div className={!game.isYourTurn ? 'opacity-50 pointer-events-none grayscale' : ''}>
+                        <NumericKeypad
+                            onNumber={handleNumberInput}
+                            onDelete={handleDelete}
+                            onEnter={handleSubmit}
+                            disabled={!game.isYourTurn}
+                        />
+                    </div>
                 </div>
 
-                {/* Your Secret (Helper) */}
-                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 flex justify-between items-center">
+                {/* Your Secret (Compact Footer) */}
+                <div className="mt-4 bg-slate-800/80 p-3 rounded-lg border border-slate-700 flex justify-between items-center">
                     <span className="text-slate-400 text-sm">Your Secret:</span>
                     <div className="flex gap-2 font-mono text-xl font-bold text-slate-300">
                         {showSecret ? game.yourSecret : '••••'}
                     </div>
                     <button
                         onClick={() => setShowSecret(!showSecret)}
-                        className="text-xs text-orange-400 hover:text-orange-300 underline"
+                        className="text-xs text-orange-400 hover:text-orange-300 px-2 py-1 rounded hover:bg-slate-700"
                     >
                         {showSecret ? 'Hide' : 'Show'}
                     </button>
                 </div>
             </div>
 
-            {/* RIGHT: History - Two Column Layout */}
+            {/* RIGHT: History */}
             <div className="lg:col-span-5 bg-slate-800 rounded-xl border border-slate-700 flex flex-col h-[500px] shadow-xl">
                 <div className="p-4 border-b border-slate-700 bg-slate-800/50 rounded-t-xl">
                     <h3 className="font-bold text-slate-300">Guess History</h3>
@@ -198,50 +204,40 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
                         <div className="text-center text-slate-500 py-8 italic">No guesses yet</div>
                     )}
                     {game.guesses && game.guesses.length > 0 && (
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* My Guesses Column */}
-                            <div>
-                                <h4 className="text-sm font-bold text-green-400 mb-3 flex items-center gap-2">
-                                    <span>👤</span> My Guesses
-                                </h4>
-                                <div className="space-y-2">
-                                    {game.guesses.filter(g => g.isMine).map((g, i) => (
-                                        <div key={i} className="bg-green-900/20 border border-green-700/50 p-3 rounded-lg">
-                                            <div className="font-mono text-lg font-bold tracking-widest text-green-300 mb-1">
-                                                {g.guess}
+                        <div className="space-y-3">
+                            {/* Combined chronological history generally better for mobile reading flow 
+                                OR Keep split but cleanup styles. Keeping split for data density.
+                            */}
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* My Guesses */}
+                                <div>
+                                    <h4 className="text-xs font-bold text-green-400 mb-2 uppercase tracking-wider opacity-80">You</h4>
+                                    <div className="space-y-2">
+                                        {game.guesses.filter(g => g.isMine).map((g, i) => (
+                                            <div key={i} className="bg-green-900/10 border border-green-700/30 p-2 rounded text-center">
+                                                <div className="font-mono font-bold text-green-300">{g.guess}</div>
+                                                <div className="flex justify-center gap-3 text-xs mt-1">
+                                                    <span className="text-red-400 font-bold">{g.dead}D</span>
+                                                    <span className="text-yellow-400 font-bold">{g.wounded}W</span>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-3 text-xs">
-                                                <span className="text-red-400">💀 {g.dead}</span>
-                                                <span className="text-yellow-400">🩹 {g.wounded}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {game.guesses.filter(g => g.isMine).length === 0 && (
-                                        <div className="text-slate-500 text-sm italic">No guesses yet</div>
-                                    )}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-
-                            {/* Opponent's Guesses Column */}
-                            <div>
-                                <h4 className="text-sm font-bold text-orange-400 mb-3 flex items-center gap-2">
-                                    <span>🎯</span> {game.opponent?.username || 'Opponent'}
-                                </h4>
-                                <div className="space-y-2">
-                                    {game.guesses.filter(g => !g.isMine).map((g, i) => (
-                                        <div key={i} className="bg-orange-900/20 border border-orange-700/50 p-3 rounded-lg">
-                                            <div className="font-mono text-lg font-bold tracking-widest text-orange-300 mb-1">
-                                                {g.guess}
+                                {/* Opponent Guesses */}
+                                <div>
+                                    <h4 className="text-xs font-bold text-orange-400 mb-2 uppercase tracking-wider opacity-80">Opponent</h4>
+                                    <div className="space-y-2">
+                                        {game.guesses.filter(g => !g.isMine).map((g, i) => (
+                                            <div key={i} className="bg-orange-900/10 border border-orange-700/30 p-2 rounded text-center">
+                                                <div className="font-mono font-bold text-orange-300">{g.guess}</div>
+                                                <div className="flex justify-center gap-3 text-xs mt-1">
+                                                    <span className="text-red-400 font-bold">{g.dead}D</span>
+                                                    <span className="text-yellow-400 font-bold">{g.wounded}W</span>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-3 text-xs">
-                                                <span className="text-red-400">💀 {g.dead}</span>
-                                                <span className="text-yellow-400">🩹 {g.wounded}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {game.guesses.filter(g => !g.isMine).length === 0 && (
-                                        <div className="text-slate-500 text-sm italic">No guesses yet</div>
-                                    )}
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -252,12 +248,12 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
     );
 
     const GameOverPhase = () => {
-        const isWinner = game.winnerId === game.myId; // We need current user ID in game object or passed prop
+        const isWinner = game.winnerId === game.myId;
 
         return (
             <div className="text-center max-w-lg mx-auto">
                 <div className={`p-8 rounded-2xl border-2 mb-8 ${isWinner ? 'bg-orange-900/20 border-orange-500/50' : 'bg-slate-800 border-slate-700'}`}>
-                    <div className="text-6xl mb-4">{isWinner ? '🏆' : '💀'}</div>
+                    <div className="text-6xl mb-4 animate-bounce">{isWinner ? '🏆' : '💀'}</div>
                     <h2 className={`text-4xl font-bold mb-2 ${isWinner ? 'text-orange-400' : 'text-slate-400'}`}>
                         {isWinner ? 'Victory!' : 'Defeat'}
                     </h2>
@@ -288,7 +284,7 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
                     </button>
                     <button
                         onClick={onPlayAgain}
-                        className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg shadow-lg transition-colors"
+                        className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg shadow-lg transition-colors hover:scale-105 active:scale-95"
                     >
                         Play Again
                     </button>
@@ -298,8 +294,8 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
     };
 
     return (
-        <div className="w-full">
-            <div className="flex justify-between items-center mb-8">
+        <div className="w-full max-w-5xl mx-auto h-[calc(100vh-100px)] flex flex-col">
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
                 <div className="flex items-center gap-2 text-slate-400">
                     <span className="text-2xl">⚔️</span>
                     <span className="font-bold text-white">vs {game.opponent?.username || 'Opponent'}</span>
@@ -314,9 +310,11 @@ export default function GameView({ game, socket, onLeave, onPlayAgain }) {
                 )}
             </div>
 
-            {game.status === 'setup' && <SetupPhase />}
-            {game.status === 'playing' && <PlayingPhase />}
-            {game.status === 'finished' && <GameOverPhase />}
+            <div className="flex-1 min-h-0">
+                {game.status === 'setup' && <SetupPhase />}
+                {game.status === 'playing' && <PlayingPhase />}
+                {game.status === 'finished' && <GameOverPhase />}
+            </div>
         </div>
     );
 }

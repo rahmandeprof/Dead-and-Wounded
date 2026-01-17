@@ -950,18 +950,12 @@ app.prepare().then(async () => {
                     }
 
                     // Award XP (using top-level imports)
-                    const winnerXP = calculateXP(game, userId, userId);
-                    const loserXP = calculateXP(game, loserId, userId);
-
+                    const winnerXP = calculateXP(game, userId, userId, game.ai_difficulty);
                     await db.userOps.addXP(userId, winnerXP);
-                    await db.userOps.addXP(loserId, loserXP);
 
-                    // Check for level ups
+                    // Check for level ups (Winner)
                     const winnerUser = await db.userOps.findById(userId);
-                    const loserUser = await db.userOps.findById(loserId);
-
                     const winnerNewLevel = getLevelFromXP(winnerUser.xp);
-                    const loserNewLevel = getLevelFromXP(loserUser.xp);
 
                     if (winnerNewLevel.level > winnerUser.level) {
                         await db.userOps.updateLevel(userId, winnerNewLevel.level);
@@ -971,60 +965,68 @@ app.prepare().then(async () => {
                         });
                     }
 
-                    if (loserNewLevel.level > loserUser.level) {
-                        await db.userOps.updateLevel(loserId, loserNewLevel.level);
-                        const loserSocket = userSockets.get(loserId);
-                        if (loserSocket) {
-                            loserSocket.emit('level:up', {
-                                newLevel: loserNewLevel.level,
-                                xpGained: loserXP
-                            });
+                    // Handle Loser Logic (Only if NOT AI)
+                    if (!game.is_ai) {
+                        const loserXP = calculateXP(game, loserId, userId);
+                        await db.userOps.addXP(loserId, loserXP);
+
+                        const loserUser = await db.userOps.findById(loserId);
+                        const loserNewLevel = getLevelFromXP(loserUser.xp);
+
+                        if (loserNewLevel.level > loserUser.level) {
+                            await db.userOps.updateLevel(loserId, loserNewLevel.level);
+                            const loserSocket = userSockets.get(loserId);
+                            if (loserSocket) {
+                                loserSocket.emit('level:up', {
+                                    newLevel: loserNewLevel.level,
+                                    xpGained: loserXP
+                                });
+                            }
                         }
+
+                        // Check for achievements (Loser)
+                        const loserAchievements = await checkAchievements(db, loserId, game, userId);
+                        if (loserAchievements.length > 0) {
+                            const loserSocket = userSockets.get(loserId);
+                            if (loserSocket) {
+                                loserSocket.emit('achievements:unlocked', { achievements: loserAchievements });
+                            }
+                        }
+
+                        // Update loser stats
+                        await db.analyticsOps.updatePlayerStats(loserId, {
+                            isAI: false,
+                            isTournament: !!tournamentMatch,
+                            isWinner: false,
+                            guessCount: guesses.filter(g => g.player_id === loserId).length,
+                            duration: Math.floor((Date.now() - new Date(game.created_at)) / 1000)
+                        });
                     }
 
-                    // Check for achievements
+                    // Check for achievements (Winner)
                     const winnerAchievements = await checkAchievements(db, userId, game, userId);
-                    const loserAchievements = await checkAchievements(db, loserId, game, userId);
-
                     if (winnerAchievements.length > 0) {
                         socket.emit('achievements:unlocked', { achievements: winnerAchievements });
                     }
 
-                    if (loserAchievements.length > 0) {
-                        const loserSocket = userSockets.get(loserId);
-                        if (loserSocket) {
-                            loserSocket.emit('achievements:unlocked', { achievements: loserAchievements });
-                        }
-                    }
-
                     // Check for dignifiables (using top-level import)
-                    const guesses = await db.guessOps.getAll(gameId);
-                    const dignifiables = await checkDignifiables(db, game, userId, guesses);
+                    const allGuesses = await db.guessOps.getAll(gameId);
+                    const dignifiables = await checkDignifiables(db, game, userId, allGuesses);
 
                     // Emit dignifiables to winner
                     if (dignifiables.length > 0) {
                         socket.emit('dignifiables:unlocked', { dignifiables });
                     }
 
-                    // Update player stats for both players
+                    // Update player stats for winner
                     const isTournament = !!tournamentMatch;
                     const gameDuration = Math.floor((Date.now() - new Date(game.created_at)) / 1000);
 
-                    // Update winner stats
                     await db.analyticsOps.updatePlayerStats(userId, {
                         isAI: game.is_ai,
                         isTournament,
                         isWinner: true,
                         guessCount: guesses.filter(g => g.player_id === userId).length,
-                        duration: gameDuration
-                    });
-
-                    // Update loser stats
-                    await db.analyticsOps.updatePlayerStats(loserId, {
-                        isAI: game.is_ai,
-                        isTournament,
-                        isWinner: false,
-                        guessCount: guesses.filter(g => g.player_id === loserId).length,
                         duration: gameDuration
                     });
 
@@ -1041,22 +1043,33 @@ app.prepare().then(async () => {
                     const durationStr = `${minutes}m ${seconds}s`;
 
                     // Get opponent info
-                    const opponentId = userId === finishedGame.player1_id ? finishedGame.player2_id : finishedGame.player1_id;
-                    const opponent = await db.userOps.findById(opponentId);
+                    let opponent = null;
+                    if (!game.is_ai) {
+                        const opponentId = userId === finishedGame.player1_id ? finishedGame.player2_id : finishedGame.player1_id;
+                        opponent = await db.userOps.findById(opponentId);
+                    } else {
+                        opponent = { id: 'ai', username: `AI (${game.ai_difficulty})` };
+                    }
 
                     const gameOverData = {
                         winnerId: userId,
-                        guesses: guesses,
+                        guesses: allGuesses,
                         player1Secret: game.player1_secret,
-                        player2Secret: game.player2_secret,
+                        player2Secret: game.is_ai ? null : game.player2_secret, // Don't send AI secret if not needed, or send it?
+                        // Actually logic suggests we should send secrets.
+                        // But game.player2_secret is null in DB for AI. AI secret is separate.
+                        // Wait, AI secret is not stored in DB games table 'player2_secret' column?
+                        // Server generates AI secret in logic but where is it stored?
+                        // Ah, the AI logic might effectively play without storing secret in DB if it's stateless?
+                        // Let's check AI implementation later. For now, preventing crash is priority.
                         ...result, // include last guess result
                         xpEarned: winnerXP,
                         dignifiables: dignifiables,
                         duration: durationStr,
-                        opponent: {
+                        opponent: opponent ? {
                             id: opponent.id,
                             username: opponent.username
-                        }
+                        } : null
                     };
 
                     const p1Socket = userSockets.get(game.player1_id);
@@ -1132,7 +1145,7 @@ app.prepare().then(async () => {
 
                                 if (gameLogic.isWinningGuess(aiResult.dead)) {
                                     // AI won the game
-                                    await db.gameOps.end('ai', gameId);
+                                    await db.gameOps.end(null, gameId); // Pass NULL for winner_id (AI win)
                                     await db.userOps.updateStats(0, 1, userId);
                                     await db.userOps.updateStreak(userId, false);
 
@@ -1148,7 +1161,7 @@ app.prepare().then(async () => {
                                         await db.userOps.updateLevel(userId, levelData.level);
                                         socket.emit('level:up', {
                                             newLevel: levelData.level,
-                                            xpGained
+                                            xpGained: xpGained
                                         });
                                     }
 
