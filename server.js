@@ -1142,10 +1142,6 @@ app.prepare().then(async () => {
                                 console.error('AI turn error:', error);
                                 socket.emit('game:ai_thinking', { thinking: false });
                             }
-                            } catch (error) {
-                                console.error('AI turn error:', error);
-                                socket.emit('game:ai_thinking', { thinking: false });
-                            }
                         }, 1500);
                     }
                 }
