@@ -1,0 +1,10 @@
+The issue is on line 1141 - there's a try block starting at line 1058 that needs a catch block.
+
+After line 1140 (the closing brace for the else block), we need to add:
+
+                            } catch (error) {
+                                console.error('AI turn error:', error);
+                                socket.emit('game:ai_thinking', { thinking: false });
+                            }
+
+This closes the try block that started at line 1058.
