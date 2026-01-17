@@ -3,29 +3,62 @@ const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
 const db = require('./lib/database');
 const gameLogic = require('./lib/game-logic');
 const AIOpponent = require('./lib/ai-opponent');
 const { v4: uuidv4 } = require('uuid');
+const { calculateXP, getLevelFromXP, checkAchievements } = require('./lib/progression');
+const { checkDignifiables, awardTournamentWinner } = require('./lib/dignifiables');
 
-const dev = process.env.NODE_ENV !== 'production';
-const hostname = process.env.HOSTNAME || '0.0.0.0';
-const port = process.env.PORT || 3000;
-// when using middleware `hostname` and `port` must be provided below
+// =============================================================================
+// CONFIGURATION CONSTANTS
+// =============================================================================
+const CONFIG = {
+    // Server
+    DEV_MODE: process.env.NODE_ENV !== 'production',
+    HOSTNAME: process.env.HOSTNAME || '0.0.0.0',
+    PORT: process.env.PORT || 3000,
+    SESSION_SECRET: process.env.SESSION_SECRET || 'dead-and-wounded-secret-key-nextjs',
+
+    // Session
+    SESSION_MAX_AGE_MS: 7 * 24 * 60 * 60 * 1000, // 7 days
+
+    // Game
+    AI_TURN_DELAY_MS: 1500,
+    MIN_TIME_CONTROL_SECONDS: 30,
+
+    // AI Time Controls (when timed mode enabled)
+    AI_TIME_EASY: 300,     // 5 minutes
+    AI_TIME_MEDIUM: 180,   // 3 minutes
+    AI_TIME_HARD: 120,     // 2 minutes
+
+    // Game Code
+    GAME_CODE_LENGTH: 6,
+    GAME_CODE_MAX_ATTEMPTS: 10
+};
+
+const dev = CONFIG.DEV_MODE;
+const hostname = CONFIG.HOSTNAME;
+const port = CONFIG.PORT;
+
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'dead-and-wounded-secret-key-nextjs';
-
-// Session configuration
+// Session configuration with PostgreSQL store
 const sessionMiddleware = session({
-    secret: SESSION_SECRET,
+    store: new pgSession({
+        pool: db.pool,
+        tableName: 'session', // Will auto-create if doesn't exist
+        createTableIfMissing: true
+    }),
+    secret: CONFIG.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true, // Changed to true to save session on first request
+    saveUninitialized: true,
     cookie: {
-        secure: false, // Set to false for Railway (Railway handles HTTPS termination)
+        secure: false, // Railway handles HTTPS termination
         httpOnly: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days instead of 24 hours
+        maxAge: CONFIG.SESSION_MAX_AGE_MS,
         sameSite: 'lax'
     }
 });
@@ -349,7 +382,6 @@ app.prepare().then(async () => {
                 const matches = await db.tournamentOps.getMatches(tournamentId, 1);
 
                 // Create games for all matches in round 1
-                const { v4: uuidv4 } = require('uuid');
                 for (const match of matches) {
                     const gameId = uuidv4();
 
@@ -543,7 +575,6 @@ app.prepare().then(async () => {
                 const challenge = await db.socialOps.acceptChallenge(challengeId);
 
                 // Create game
-                const { v4: uuidv4 } = require('uuid');
                 const gameId = uuidv4();
 
                 if (challenge.time_control_seconds) {
@@ -815,7 +846,6 @@ app.prepare().then(async () => {
                                 const winnerId = standings[0].user_id;
 
                                 // Award tournament winner dignifiable
-                                const { awardTournamentWinner } = require('./lib/dignifiables');
                                 const winnerDignifiable = await awardTournamentWinner(db, tournamentMatch.tournament_id, winnerId);
 
                                 // Notify winner of dignifiable
@@ -844,7 +874,6 @@ app.prepare().then(async () => {
                                 const updatedTournament = await db.tournamentOps.findById(tournamentMatch.tournament_id);
 
                                 // Create games for next round
-                                const { v4: uuidv4 } = require('uuid');
                                 for (const pairing of nextRoundMatches) {
                                     const gameId = uuidv4();
 
@@ -906,8 +935,7 @@ app.prepare().then(async () => {
                         }
                     }
 
-                    // Award XP
-                    const { calculateXP, getLevelFromXP, checkAchievements } = require('./lib/progression');
+                    // Award XP (using top-level imports)
                     const winnerXP = calculateXP(game, userId, userId);
                     const loserXP = calculateXP(game, loserId, userId);
 
@@ -955,9 +983,8 @@ app.prepare().then(async () => {
                         }
                     }
 
-                    // Check for dignifiables
-                    const { checkDignifiables } = require('./lib/dignifiables');
-                    const guesses = await db.guessOps.getAll(gameId); // Changed from findByGame to getAll to match existing pattern
+                    // Check for dignifiables (using top-level import)
+                    const guesses = await db.guessOps.getAll(gameId);
                     const dignifiables = await checkDignifiables(db, game, userId, guesses);
 
                     // Emit dignifiables to winner
@@ -1095,8 +1122,7 @@ app.prepare().then(async () => {
                                     await db.userOps.updateStats(0, 1, userId);
                                     await db.userOps.updateStreak(userId, false);
 
-                                    // Award XP for loss (AI won, player lost)
-                                    const { calculateXP, getLevelFromXP } = require('./lib/progression');
+                                    // Award XP for loss (AI won, player lost) - using top-level imports
                                     const xpGained = calculateXP(game, 'ai', userId, game.ai_difficulty);
                                     await db.userOps.addXP(userId, xpGained);
 
@@ -1166,7 +1192,7 @@ app.prepare().then(async () => {
                                 console.error('AI turn error:', error);
                                 socket.emit('game:ai_thinking', { thinking: false });
                             }
-                        }, 1500);
+                        }, CONFIG.AI_TURN_DELAY_MS);
                     }
                 }
             } catch (error) {
