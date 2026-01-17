@@ -1043,6 +1043,14 @@ app.prepare().then(async () => {
                     });
 
                     if (game.is_ai && !game.is_practice) {
+                        // First check if player just won
+                        if (gameLogic.isWinningGuess(result.dead)) {
+                            console.log('🎉 Player won against AI!');
+                            // Player won - game already ended in PvP logic above
+                            // Just need to trigger AI-specific completion
+                            return;
+                        }
+
                         console.log('🤖 Triggering AI turn...');
                         socket.emit('game:ai_thinking', { thinking: true });
 
