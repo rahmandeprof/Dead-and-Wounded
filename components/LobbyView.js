@@ -269,8 +269,8 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                                     <button
                                         onClick={() => setAiDifficulty('easy')}
                                         className={`py-3 px-4 rounded-lg font-semibold transition-all ${aiDifficulty === 'easy'
-                                                ? 'bg-green-600 text-white ring-2 ring-green-400'
-                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            ? 'bg-green-600 text-white ring-2 ring-green-400'
+                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                                             }`}
                                     >
                                         😊 Easy
@@ -278,8 +278,8 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                                     <button
                                         onClick={() => setAiDifficulty('medium')}
                                         className={`py-3 px-4 rounded-lg font-semibold transition-all ${aiDifficulty === 'medium'
-                                                ? 'bg-yellow-600 text-white ring-2 ring-yellow-400'
-                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            ? 'bg-yellow-600 text-white ring-2 ring-yellow-400'
+                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                                             }`}
                                     >
                                         🤔 Medium
@@ -287,8 +287,8 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                                     <button
                                         onClick={() => setAiDifficulty('hard')}
                                         className={`py-3 px-4 rounded-lg font-semibold transition-all ${aiDifficulty === 'hard'
-                                                ? 'bg-red-600 text-white ring-2 ring-red-400'
-                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            ? 'bg-red-600 text-white ring-2 ring-red-400'
+                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                                             }`}
                                     >
                                         😈 Hard
@@ -299,18 +299,54 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                             {/* Timed Mode Toggle */}
                             <div className="mb-6">
                                 <label className="flex items-center justify-between p-4 bg-slate-900/50 rounded-lg border border-slate-700 cursor-pointer hover:border-slate-600 transition-colors">
-                                    <div>
-                                        <span className="font-medium text-white">⏱️ Timed Mode</span>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-white">⏱️ Timed Mode</span>
+                                            {aiTimed && (
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="60"
+                                                    defaultValue={
+                                                        aiDifficulty === 'easy' ? 5 :
+                                                            aiDifficulty === 'medium' ? 3 : 2
+                                                    }
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onChange={(e) => {
+                                                        const val = parseInt(e.target.value);
+                                                        const max = aiDifficulty === 'hard' ? 5 : 60;
+
+                                                        if (val && !isNaN(val)) {
+                                                            if (val > max) {
+                                                                e.target.value = max;
+                                                                e.target.dataset.minutes = max;
+                                                            } else {
+                                                                e.target.dataset.minutes = val;
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="w-20 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-center focus:ring-2 focus:ring-purple-500 outline-none"
+                                                    placeholder="Min"
+                                                />
+                                            )}
+                                            {aiTimed && <span className="text-slate-400 text-sm">min</span>}
+                                        </div>
                                         <p className="text-sm text-slate-400 mt-1">
-                                            {aiDifficulty === 'easy' && 'You get 5 minutes'}
-                                            {aiDifficulty === 'medium' && 'You get 3 minutes'}
-                                            {aiDifficulty === 'hard' && 'You get 2 minutes!'}
+                                            {!aiTimed ? (
+                                                <>
+                                                    {aiDifficulty === 'easy' && 'Default: 5 minutes'}
+                                                    {aiDifficulty === 'medium' && 'Default: 3 minutes'}
+                                                    {aiDifficulty === 'hard' && 'Default: 2 minutes'}
+                                                </>
+                                            ) : (
+                                                'Set your time limit'
+                                            )}
                                         </p>
                                     </div>
                                     <div
-                                        onClick={() => setAiTimed(!aiTimed)}
-                                        className={`w-14 h-8 rounded-full transition-colors relative ${aiTimed ? 'bg-purple-600' : 'bg-slate-600'
+                                        className={`w-14 h-8 rounded-full transition-colors relative flex-shrink-0 ml-4 ${aiTimed ? 'bg-purple-600' : 'bg-slate-600'
                                             }`}
+                                        onClick={() => setAiTimed(!aiTimed)}
                                     >
                                         <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${aiTimed ? 'translate-x-7' : 'translate-x-1'
                                             }`}></div>
@@ -322,7 +358,28 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => {
-                                        onPlayAI(aiDifficulty, aiTimed);
+                                        // Get custom time from input or default
+                                        const input = document.querySelector('input[type="number"]');
+                                        let customMinutes = null;
+                                        if (aiTimed && input) {
+                                            customMinutes = parseInt(input.value);
+                                        }
+
+                                        let timeControl = null;
+                                        if (aiTimed) {
+                                            if (customMinutes) {
+                                                timeControl = customMinutes * 60;
+                                            } else {
+                                                // Fallback to defaults if input is empty but timed is on
+                                                switch (aiDifficulty) {
+                                                    case 'easy': timeControl = 300; break;
+                                                    case 'medium': timeControl = 180; break;
+                                                    case 'hard': timeControl = 120; break;
+                                                }
+                                            }
+                                        }
+
+                                        onPlayAI(aiDifficulty, aiTimed, timeControl);
                                         setShowAIModal(false);
                                     }}
                                     className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg transition-colors"

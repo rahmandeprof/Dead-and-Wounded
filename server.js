@@ -32,6 +32,7 @@ const CONFIG = {
     AI_TIME_EASY: 300,     // 5 minutes
     AI_TIME_MEDIUM: 180,   // 3 minutes
     AI_TIME_HARD: 120,     // 2 minutes
+    AI_MAX_TIME_HARD: 300, // 5 minutes max for hard mode custom timer
 
     // Game Code
     GAME_CODE_LENGTH: 6,
@@ -224,13 +225,13 @@ app.prepare().then(async () => {
                 let gameCode;
                 let attempts = 0;
                 do {
-                    gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    gameCode = Math.random().toString(36).substring(2, 2 + CONFIG.GAME_CODE_LENGTH).toUpperCase();
                     const existing = await db.gameOps.findByCode(gameCode);
                     if (!existing) break;
                     attempts++;
-                } while (attempts < 10);
+                } while (attempts < CONFIG.GAME_CODE_MAX_ATTEMPTS);
 
-                if (attempts >= 10) {
+                if (attempts >= CONFIG.GAME_CODE_MAX_ATTEMPTS) {
                     socket.emit('game:error', { message: 'Failed to generate unique code' });
                     return;
                 }
@@ -240,8 +241,8 @@ app.prepare().then(async () => {
 
                 // Validate time control if provided (minimum 30 seconds)
                 if (timeControlSeconds !== undefined && timeControlSeconds !== null) {
-                    if (timeControlSeconds < 30) {
-                        socket.emit('game:error', { message: 'Minimum time control is 30 seconds' });
+                    if (timeControlSeconds < CONFIG.MIN_TIME_CONTROL_SECONDS) {
+                        socket.emit('game:error', { message: `Minimum time control is ${CONFIG.MIN_TIME_CONTROL_SECONDS} seconds` });
                         return;
                     }
                     await db.gameOps.createPrivateTimed(gameId, userId, gameCode, timeControlSeconds);
@@ -630,7 +631,7 @@ app.prepare().then(async () => {
             }
         });
 
-        socket.on('game:play_ai', async ({ difficulty = 'medium', timed = false }) => {
+        socket.on('game:play_ai', async ({ difficulty = 'medium', timed = false, timeControl = null }) => {
             try {
                 // Validate difficulty
                 const validDifficulties = ['easy', 'medium', 'hard'];
@@ -647,16 +648,29 @@ app.prepare().then(async () => {
                 // Set time limit based on difficulty (if timed mode)
                 let timeControlSeconds = null;
                 if (timed) {
-                    switch (aiDifficulty) {
-                        case 'easy':
-                            timeControlSeconds = 300; // 5 minutes
-                            break;
-                        case 'medium':
-                            timeControlSeconds = 180; // 3 minutes
-                            break;
-                        case 'hard':
-                            timeControlSeconds = 120; // 2 minutes - pressure!
-                            break;
+                    if (timeControl && !isNaN(timeControl) && timeControl >= CONFIG.MIN_TIME_CONTROL_SECONDS) {
+                        timeControlSeconds = parseInt(timeControl);
+
+                        // Enforce max time for HARD mode
+                        if (aiDifficulty === 'hard' && timeControlSeconds > CONFIG.AI_MAX_TIME_HARD) {
+                            socket.emit('game:error', {
+                                message: `Max time for Hard difficulty is ${CONFIG.AI_MAX_TIME_HARD / 60} minutes`
+                            });
+                            return;
+                        }
+
+                    } else {
+                        switch (aiDifficulty) {
+                            case 'easy':
+                                timeControlSeconds = CONFIG.AI_TIME_EASY;
+                                break;
+                            case 'medium':
+                                timeControlSeconds = CONFIG.AI_TIME_MEDIUM;
+                                break;
+                            case 'hard':
+                                timeControlSeconds = CONFIG.AI_TIME_HARD;
+                                break;
+                        }
                     }
                 }
 
