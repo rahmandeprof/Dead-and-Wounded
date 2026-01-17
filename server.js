@@ -1058,13 +1058,14 @@ app.prepare().then(async () => {
                                 await db.guessOps.add(gameId, null, aiGuess, aiResult.dead, aiResult.wounded);
 
                                 if (gameLogic.isWinningGuess(aiResult.dead)) {
-                                    await db.gameOps.end(userId, gameId);
-                                    await db.userOps.updateStats(1, 0, userId);
-                                    await db.userOps.updateStreak(userId, true);
+                                    // AI won the game
+                                    await db.gameOps.end('ai', gameId);
+                                    await db.userOps.updateStats(0, 1, userId);
+                                    await db.userOps.updateStreak(userId, false);
 
-                                    // Award XP for AI win
-                                    const { calculateXP, getLevelFromXP, checkAchievements } = require('./lib/progression');
-                                    const xpGained = calculateXP(game, userId, userId, game.ai_difficulty);
+                                    // Award XP for loss
+                                    const { calculateXP, getLevelFromXP } = require('./lib/progression');
+                                    const xpGained = calculateXP(false, game.ai_difficulty);
                                     await db.userOps.addXP(userId, xpGained);
 
                                     // Check for level up
@@ -1079,22 +1080,37 @@ app.prepare().then(async () => {
                                         });
                                     }
 
-                                    // Check achievements
-                                    const achievements = await checkAchievements(db, userId, game, userId);
-                                    if (achievements.length > 0) {
-                                        socket.emit('achievements:unlocked', { achievements });
-                                    }
-
                                     const finishedGame = await db.gameOps.findById(gameId);
                                     const allGuesses = await db.guessOps.getAll(gameId);
 
+                                    // Calculate duration
+                                    const gameDuration = Math.floor((Date.now() - new Date(game.created_at)) / 1000);
+                                    const minutes = Math.floor(gameDuration / 60);
+                                    const seconds = gameDuration % 60;
+                                    const durationStr = `${minutes}m ${seconds}s`;
+
+                                    // Update player stats
+                                    await db.analyticsOps.updatePlayerStats(userId, {
+                                        isAI: true,
+                                        isTournament: false,
+                                        isWinner: false,
+                                        guessCount: allGuesses.filter(g => g.player_id === userId).length,
+                                        duration: gameDuration
+                                    });
+
                                     socket.emit('game:over', {
                                         ...formatGameState(finishedGame, userId),
-                                        winnerId: null,
+                                        winnerId: 'ai',
                                         winnerUsername: `AI (${game.ai_difficulty})`,
                                         guesses: allGuesses,
                                         player1Secret: game.player1_secret,
-                                        player2Secret: game.player2_secret
+                                        player2Secret: game.player2_secret,
+                                        xpEarned,
+                                        duration: durationStr,
+                                        opponent: {
+                                            id: 'ai',
+                                            username: `AI (${game.ai_difficulty.charAt(0).toUpperCase() + game.ai_difficulty.slice(1)})`
+                                        }
                                     });
                                 } else {
                                     await db.gameOps.switchTurn(userId, gameId);
