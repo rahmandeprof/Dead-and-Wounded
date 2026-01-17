@@ -179,7 +179,7 @@ app.prepare().then(async () => {
             }
         });
 
-        socket.on('game:create_private', async () => {
+        socket.on('game:create_private', async (data = {}) => {
             try {
                 const activeGame = await db.gameOps.findActiveForUser(userId);
                 if (activeGame) {
@@ -718,6 +718,7 @@ app.prepare().then(async () => {
                 }
             } catch (error) {
                 console.error('Secret error:', error);
+                socket.emit('game:error', { message: 'Failed to set secret' });
             }
         });
 
@@ -1094,9 +1095,9 @@ app.prepare().then(async () => {
                                     await db.userOps.updateStats(0, 1, userId);
                                     await db.userOps.updateStreak(userId, false);
 
-                                    // Award XP for loss
+                                    // Award XP for loss (AI won, player lost)
                                     const { calculateXP, getLevelFromXP } = require('./lib/progression');
-                                    const xpGained = calculateXP(false, game.ai_difficulty);
+                                    const xpGained = calculateXP(game, 'ai', userId, game.ai_difficulty);
                                     await db.userOps.addXP(userId, xpGained);
 
                                     // Check for level up
@@ -1136,7 +1137,7 @@ app.prepare().then(async () => {
                                         guesses: allGuesses,
                                         player1Secret: game.player1_secret,
                                         player2Secret: game.player2_secret,
-                                        xpEarned,
+                                        xpEarned: xpGained,
                                         duration: durationStr,
                                         opponent: {
                                             id: 'ai',
@@ -1196,20 +1197,40 @@ app.prepare().then(async () => {
         });
 
         socket.on('game:leave', async ({ gameId }) => {
-            // (Simplify logic: just forfeit if playing)
-            const game = await db.gameOps.findById(gameId);
-            if (game && (game.status === 'playing' || game.status === 'setup')) {
-                const winnerId = game.player1_id === userId ? game.player2_id : game.player1_id;
-                await db.gameOps.end(winnerId, gameId);
-                await db.userOps.updateStats(0, 1, userId);
-                await db.userOps.updateStats(1, 0, winnerId);
+            try {
+                const game = await db.gameOps.findById(gameId);
+                if (!game) {
+                    socket.emit('game:left');
+                    return;
+                }
 
-                const oppSocket = userSockets.get(winnerId);
-                if (oppSocket) oppSocket.emit('game:opponent_left', { message: 'Opponent left. You win!' });
-            } else if (game && game.status === 'waiting') {
-                await db.gameOps.delete(gameId);
+                if (game.status === 'playing' || game.status === 'setup') {
+                    // Handle AI games - no opponent to award win to
+                    if (game.is_ai || game.is_practice) {
+                        await db.gameOps.end(null, gameId);
+                        await db.userOps.updateStats(0, 1, userId);
+                    } else {
+                        // PvP game - award win to opponent
+                        const winnerId = game.player1_id === userId ? game.player2_id : game.player1_id;
+                        if (winnerId) {
+                            await db.gameOps.end(winnerId, gameId);
+                            await db.userOps.updateStats(0, 1, userId);
+                            await db.userOps.updateStats(1, 0, winnerId);
+
+                            const oppSocket = userSockets.get(winnerId);
+                            if (oppSocket) oppSocket.emit('game:opponent_left', { message: 'Opponent left. You win!' });
+                        } else {
+                            await db.gameOps.delete(gameId);
+                        }
+                    }
+                } else if (game.status === 'waiting') {
+                    await db.gameOps.delete(gameId);
+                }
+                socket.emit('game:left');
+            } catch (error) {
+                console.error('Leave game error:', error);
+                socket.emit('game:error', { message: 'Failed to leave game' });
             }
-            socket.emit('game:left');
         });
     });
 
@@ -1218,19 +1239,3 @@ app.prepare().then(async () => {
     });
 });
 
-
-function formatGameState(game, playerId) {
-    const isPlayer1 = game.player1_id === playerId;
-    const opponentId = isPlayer1 ? game.player2_id : game.player1_id;
-    const opponent = opponentId ? db.userOps.findById(opponentId) : null;
-
-    return {
-        gameId: game.id,
-        status: game.status,
-        isYourTurn: game.current_turn === playerId,
-        yourSecret: isPlayer1 ? game.player1_secret : game.player2_secret,
-        hasSetSecret: isPlayer1 ? !!game.player1_secret : !!game.player2_secret,
-        opponentHasSetSecret: isPlayer1 ? !!game.player2_secret : !!game.player1_secret,
-        opponent: opponent ? { id: opponent.id, username: opponent.username } : null
-    };
-}
