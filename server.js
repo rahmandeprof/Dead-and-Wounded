@@ -599,7 +599,7 @@ app.prepare().then(async () => {
             }
         });
 
-        socket.on('game:play_ai', async ({ difficulty = 'medium' }) => {
+        socket.on('game:play_ai', async ({ difficulty = 'medium', timed = false }) => {
             try {
                 // Validate difficulty
                 const validDifficulties = ['easy', 'medium', 'hard'];
@@ -612,7 +612,28 @@ app.prepare().then(async () => {
                 }
 
                 const gameId = uuidv4();
-                await db.gameOps.createAI(gameId, userId, aiDifficulty);
+
+                // Set time limit based on difficulty (if timed mode)
+                let timeControlSeconds = null;
+                if (timed) {
+                    switch (aiDifficulty) {
+                        case 'easy':
+                            timeControlSeconds = 300; // 5 minutes
+                            break;
+                        case 'medium':
+                            timeControlSeconds = 180; // 3 minutes
+                            break;
+                        case 'hard':
+                            timeControlSeconds = 120; // 2 minutes - pressure!
+                            break;
+                    }
+                }
+
+                if (timeControlSeconds) {
+                    await db.gameOps.createAITimed(gameId, userId, aiDifficulty, timeControlSeconds);
+                } else {
+                    await db.gameOps.createAI(gameId, userId, aiDifficulty);
+                }
 
                 // Create AI opponent
                 const ai = new AIOpponent(aiDifficulty);
@@ -625,7 +646,9 @@ app.prepare().then(async () => {
                 socket.emit('game:ai_created', {
                     ...formatGameState(game, userId),
                     aiDifficulty: aiDifficulty,
-                    opponentName: `AI (${aiDifficulty.charAt(0).toUpperCase() + aiDifficulty.slice(1)})`
+                    timed: !!timeControlSeconds,
+                    timeControl: timeControlSeconds,
+                    opponentName: `AI (${aiDifficulty.charAt(0).toUpperCase() + aiDifficulty.slice(1)}${timed ? ' ⏱️' : ''})`
                 });
             } catch (error) {
                 console.error('Create AI game error:', error);
