@@ -4,7 +4,10 @@ import TimeControlSelector from './TimeControlSelector';
 export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistory, onPlayAI, onPractice, onFindGame, onViewTournaments, isSearching, privateGameCode, onCancelSearch }) {
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [showTimeControlModal, setShowTimeControlModal] = useState(false);
+    const [showAIModal, setShowAIModal] = useState(false);
     const [selectedTimeControl, setSelectedTimeControl] = useState(null);
+    const [aiDifficulty, setAiDifficulty] = useState('medium');
+    const [aiTimed, setAiTimed] = useState(false);
     const [joinCode, setJoinCode] = useState('');
     const [joinError, setJoinError] = useState('');
 
@@ -99,7 +102,7 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                                 <h2 className="text-3xl font-bold text-white mb-6">Practice</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <button
-                                        onClick={() => onPlayAI('medium')}
+                                        onClick={() => setShowAIModal(true)}
                                         className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
                                     >
                                         🤖 VS AI
@@ -240,6 +243,97 @@ export default function LobbyView({ onCreatePrivate, onJoinPrivate, onViewHistor
                                     onClick={() => {
                                         setShowTimeControlModal(false);
                                         setSelectedTimeControl(null);
+                                    }}
+                                    className="px-6 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* AI Game Modal */}
+            {
+                showAIModal && (
+                    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                        <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full shadow-2xl">
+                            <h3 className="text-2xl font-bold mb-2">🤖 Play vs AI</h3>
+                            <p className="text-slate-400 mb-6">Choose your challenge level</p>
+
+                            {/* Difficulty Selection */}
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-slate-300 mb-3">Difficulty</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                        onClick={() => setAiDifficulty('easy')}
+                                        className={`py-3 px-4 rounded-lg font-semibold transition-all ${aiDifficulty === 'easy'
+                                                ? 'bg-green-600 text-white ring-2 ring-green-400'
+                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            }`}
+                                    >
+                                        😊 Easy
+                                    </button>
+                                    <button
+                                        onClick={() => setAiDifficulty('medium')}
+                                        className={`py-3 px-4 rounded-lg font-semibold transition-all ${aiDifficulty === 'medium'
+                                                ? 'bg-yellow-600 text-white ring-2 ring-yellow-400'
+                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            }`}
+                                    >
+                                        🤔 Medium
+                                    </button>
+                                    <button
+                                        onClick={() => setAiDifficulty('hard')}
+                                        className={`py-3 px-4 rounded-lg font-semibold transition-all ${aiDifficulty === 'hard'
+                                                ? 'bg-red-600 text-white ring-2 ring-red-400'
+                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            }`}
+                                    >
+                                        😈 Hard
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Timed Mode Toggle */}
+                            <div className="mb-6">
+                                <label className="flex items-center justify-between p-4 bg-slate-900/50 rounded-lg border border-slate-700 cursor-pointer hover:border-slate-600 transition-colors">
+                                    <div>
+                                        <span className="font-medium text-white">⏱️ Timed Mode</span>
+                                        <p className="text-sm text-slate-400 mt-1">
+                                            {aiDifficulty === 'easy' && 'You get 5 minutes'}
+                                            {aiDifficulty === 'medium' && 'You get 3 minutes'}
+                                            {aiDifficulty === 'hard' && 'You get 2 minutes!'}
+                                        </p>
+                                    </div>
+                                    <div
+                                        onClick={() => setAiTimed(!aiTimed)}
+                                        className={`w-14 h-8 rounded-full transition-colors relative ${aiTimed ? 'bg-purple-600' : 'bg-slate-600'
+                                            }`}
+                                    >
+                                        <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${aiTimed ? 'translate-x-7' : 'translate-x-1'
+                                            }`}></div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        onPlayAI(aiDifficulty, aiTimed);
+                                        setShowAIModal(false);
+                                    }}
+                                    className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg transition-colors"
+                                >
+                                    Start Game
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowAIModal(false);
+                                        setAiDifficulty('medium');
+                                        setAiTimed(false);
                                     }}
                                     className="px-6 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg transition-colors"
                                 >

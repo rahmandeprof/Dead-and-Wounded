@@ -356,20 +356,15 @@ export default function Home() {
         setView('lobby');
     };
 
-    const handlePlayAI = () => {
-        setShowDifficultyModal(true);
-    };
-
-    const handleDifficultySelect = (difficulty) => {
-        console.log('🤖 Play vs AI clicked - Difficulty:', difficulty);
+    const handlePlayAI = (difficulty = 'medium', timed = false) => {
+        console.log('🤖 Play vs AI clicked - Difficulty:', difficulty, 'Timed:', timed);
         console.log('Socket connected:', socket?.connected);
         if (!socket || !socket.connected) {
             console.error('❌ Socket not connected!');
             alert('Connection error. Please refresh the page.');
             return;
         }
-        setShowDifficultyModal(false);
-        socket.emit('game:play_ai', { difficulty });
+        socket.emit('game:play_ai', { difficulty, timed });
     };
 
     const handlePractice = () => {
